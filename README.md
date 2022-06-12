@@ -1,412 +1,80 @@
-# Go JSON Schema Reflection
-
-[![Lint](https://github.com/invopop/jsonschema/actions/workflows/lint.yaml/badge.svg)](https://github.com/invopop/jsonschema/actions/workflows/lint.yaml)
-[![Test Go](https://github.com/invopop/jsonschema/actions/workflows/test.yaml/badge.svg)](https://github.com/invopop/jsonschema/actions/workflows/test.yaml)
-[![Go Report Card](https://goreportcard.com/badge/github.com/invopop/jsonschema)](https://goreportcard.com/report/github.com/invopop/jsonschema)
-[![GoDoc](https://godoc.org/github.com/invopop/jsonschema?status.svg)](https://godoc.org/github.com/invopop/jsonschema)
-![Latest Tag](https://img.shields.io/github/v/tag/invopop/jsonschema)
-
-This package can be used to generate [JSON Schemas](http://json-schema.org/latest/json-schema-validation.html) from Go types through reflection.
-
-- Supports arbitrarily complex types, including `interface{}`, maps, slices, etc.
-- Supports json-schema features such as minLength, maxLength, pattern, format, etc.
-- Supports simple string and numeric enums.
-- Supports custom property fields via the `jsonschema_extras` struct tag.
-
-This repository is a fork of the original [jsonschema](https://github.com/alecthomas/jsonschema) by [@alecthomas](https://github.com/alecthomas). At [Invopop](https://invopop.com) we use jsonschema as a cornerstone in our [GOBL library](https://github.com/invopop/gobl), and wanted to be able to continue building and adding features without taking up Alec's time. There have been a few significant changes that probably mean this version is a not compatible with with Alec's:
-
-- The original was stuck on the draft-04 version of JSON Schema, we've now moved to the latest JSON Schema Draft 2020-12.
-- Schema IDs are added automatically from the current Go package's URL in order to be unique, and can be disabled with the `Anonymous` option.
-- Support for the `FullyQualifyTypeName` option has been removed. If you have conflicts, you should use multiple schema files with different IDs, set the `DoNotReference` option to true to hide definitions completely, or add your own naming strategy using the `Namer` property.
-
-## Example
-
-The following Go type:
-
-```go
-type TestUser struct {
-  ID            int                    `json:"id"`
-  Name          string                 `json:"name" jsonschema:"title=the name,description=The name of a friend,example=joe,example=lucy,default=alex"`
-  Friends       []int                  `json:"friends,omitempty" jsonschema_description:"The list of IDs, omitted when empty"`
-  Tags          map[string]interface{} `json:"tags,omitempty" jsonschema_extras:"a=b,foo=bar,foo=bar1"`
-  BirthDate     time.Time              `json:"birth_date,omitempty" jsonschema:"oneof_required=date"`
-  YearOfBirth   string                 `json:"year_of_birth,omitempty" jsonschema:"oneof_required=year"`
-  Metadata      interface{}            `json:"metadata,omitempty" jsonschema:"oneof_type=string;array"`
-  FavColor      string                 `json:"fav_color,omitempty" jsonschema:"enum=red,enum=green,enum=blue"`
-}
+# jsonschemaline
+### 计划
+将 validate_schema、output_schema 改成 key:value 格式(类似go tag)，提升可阅读性和维护效率
+出参案例：
+```
+{"$schema":"http://json-schema.org/draft-07/schema#","$id":"execAPIXyxzBlacklistInfoPaginate","properties":{"items":{"type":"array","items":{"type":"object","properties":{"id":{"type":"string","src":"PaginateOut.#.Fid"},"openId":{"type":"string","src":"PaginateOut.#.Fopen_id"},"type":{"type":"string","src":"PaginateOut.#.Fopen_id_type"},"status":{"type":"string","src":"PaginateOut.#.Fstatus"}},"required":["id","openId","type","status"]}},"pageInfo":{"type":"object","properties":{"pageIndex":{"type":"string","src":"input.pageIndex"},"pageSize":{"type":"string","src":"input.pageSize"},"total":{"type":"string","src":"PaginateTotalOut"}},"required":["pageIndex","pageSize","total"]}},"type":"object","required":["items","pageInfo"]}
+```
+转换为：
+```
+fullname:items[].id,src:PaginateOut.#.Fid,type:string,required:true
+fullname:items[].openId,src:PaginateOut.#.Fopen_id,type:string,required:true
+fullname:items[].type,src:PaginateOut.#.Fopen_id_type,type:string,required:true
+fullname:items[].status,src:PaginateOut.#.Fstatus,type:string,required:true
+fullname:pageInfo.pageIndex,src:input.pageIndex,type:string,required:true
+fullname:pageInfo.pageSize,src:input.pageSize,type:string,required:true
+fullname:pageInfo.total,src:PaginateTotalOut,type:string,required:true
 ```
 
-Results in following JSON Schema:
+入参案例：
+```
+{"$schema":"http://json-schema.org/draft-07/schema#","$id":"execAPIXyxzBlacklistInfoInsert","properties":{"config":{"type":"object","properties":{"openId":{"type":"string","format":"DBValidate"},"type":{"type":"string","format":"number","enum":["1","2"]},"status":{"type":"string","format":"number","enum":["0","1"]}},"required":["openId","type","status"]}},"type":"object"}
+```
+转换为：
+```
+fullname:config.openId,dst:FopenID,format:DBValidate,type:string,required:true
+fullname:config.type,dst:FopenIDType,enum:["1","2"],type:string,required:true
+fullname:config.status,dst:Fstatus,enum:["0","1"],type:string,required:true
 
-```go
-jsonschema.Reflect(&TestUser{})
+```
+分页入参案例:
+```
+{"$schema":"http://json-schema.org/draft-07/schema#","$id":"execAPIInquiryScreenIdentifyPaginate","properties":{"pageSize":{"type":"string","format":"number"},"pageIndex":{"type":"string","format":"number"}},"type":"object","required":["pageSize","pageIndex"]}
+```
+转换为:
+```
+fullname:pageSize,dst:limit,format:number,type:string,required:true
+fullname:pageIndex,dst:Offset,format:number,type:string,required:true,tpl:{{setValue . "Offset" (mul  (getValue .  "input.pageIndex")   (getValue . "input.pageSize"))}}
+```
+dst、tpl 字段会提炼出，动态生成 template内容
+通过这种转换后，更易于书写和阅读，和计划中的文档格式更相似，同时dst、tpl等字段定义优化了值转换的管理为自动校验提供可行的机制，后续api 的 exec 字段可能被弃用
+
+有偿功能实现,价格500左右,
+概念:把
+```
+fullname:xxx,type:xxx,required:true ...
+fullname:xxx,type:xxx,required:true ...
+```
+的格式称为jsonschema 行列式
+一行代表一个jsonschema 元素的描述,其格式为key:value,... 其中key包含fullname、src、dst tpl 4个特殊值,其余的为标准的jsonschema 的属性(如 type,required、enum 等关键词) 每对key:value 之间使用英文","分割.顺序无要求,除了fullname、type 属性必须之外,其它属性可有可无,特殊属性描述:
+fullname 必须存在,由[a-zA-z_]以及特殊字符串.和[]组成.其中"."代表json对象,"[]"代表数组 如"fullname:userList[].name" 代表 userList是数组格式,userList数组元素为对象,数组元素对象有个name属性
+src、dst 两个属性无特殊意义,仅仅是给标准jsonschema增加的自定义属性
+需要实现的功能:
+标准jsonschema和jsonschema 行列式 互转
+
+
+案例1:
+jsonschema:
+```
+{"$schema":"http://json-schema.org/draft-07/schema#","properties":{"config":{"type":"object","properties":{"openId":{"type":"string","format":"DBValidate"},"type":{"type":"string","format":"number","enum":["1","2"]},"status":{"type":"string","format":"number","enum":["0","1"]}},"required":["openId","type","status"]}},"type":"object"}
+```
+对应 jsonschema 行列式
+
+```
+fullname:config.openId,dst:FopenID,format:DBValidate,type:string,required:true
+fullname:config.type,dst:FopenIDType,enum:["1","2"],type:string,required:true
+fullname:config.status,dst:Fstatus,enum:["0","1"],type:string,required:true
+
 ```
 
-```json
-{
-  "$schema": "http://json-schema.org/draft/2020-12/schema",
-  "$ref": "#/$defs/SampleUser",
-  "$defs": {
-    "SampleUser": {
-      "oneOf": [
-        {
-          "required": ["birth_date"],
-          "title": "date"
-        },
-        {
-          "required": ["year_of_birth"],
-          "title": "year"
-        }
-      ],
-      "properties": {
-        "id": {
-          "type": "integer"
-        },
-        "name": {
-          "type": "string",
-          "title": "the name",
-          "description": "The name of a friend",
-          "default": "alex",
-          "examples": ["joe", "lucy"]
-        },
-        "friends": {
-          "items": {
-            "type": "integer"
-          },
-          "type": "array",
-          "description": "The list of IDs, omitted when empty"
-        },
-        "tags": {
-          "type": "object",
-          "a": "b",
-          "foo": ["bar", "bar1"]
-        },
-        "birth_date": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "year_of_birth": {
-          "type": "string"
-        },
-        "metadata": {
-          "oneOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "array"
-            }
-          ]
-        },
-        "fav_color": {
-          "type": "string",
-          "enum": ["red", "green", "blue"]
-        }
-      },
-      "additionalProperties": false,
-      "type": "object",
-      "required": ["id", "name"]
-    }
-  }
-}
+案例2：
+jsonschema 行列式
 ```
-
-## Configurable behaviour
-
-The behaviour of the schema generator can be altered with parameters when a `jsonschema.Reflector`
-instance is created.
-
-### ExpandedStruct
-
-If set to `true`, makes the top level struct not to reference itself in the definitions. But type passed should be a struct type.
-
-eg.
-
-```go
-type GrandfatherType struct {
-	FamilyName string `json:"family_name" jsonschema:"required"`
-}
-
-type SomeBaseType struct {
-	SomeBaseProperty int `json:"some_base_property"`
-	// The jsonschema required tag is nonsensical for private and ignored properties.
-	// Their presence here tests that the fields *will not* be required in the output
-	// schema, even if they are tagged required.
-	somePrivateBaseProperty            string `json:"i_am_private" jsonschema:"required"`
-	SomeIgnoredBaseProperty            string `json:"-" jsonschema:"required"`
-	SomeSchemaIgnoredProperty          string `jsonschema:"-,required"`
-	SomeUntaggedBaseProperty           bool   `jsonschema:"required"`
-	someUnexportedUntaggedBaseProperty bool
-	Grandfather                        GrandfatherType `json:"grand"`
-}
+fullname:config.openId,dst:FopenID,format:DBValidate,type:string,required:true
+fullname:config.type,dst:FopenIDType,enum:["1","2"],type:string,required:true
+fullname:config.status,dst:Fstatus,enum:["0","1"],type:string,required:true
 ```
-
-will output:
-
-```json
-{
-  "$schema": "http://json-schema.org/draft/2020-12/schema",
-  "required": ["some_base_property", "grand", "SomeUntaggedBaseProperty"],
-  "properties": {
-    "SomeUntaggedBaseProperty": {
-      "type": "boolean"
-    },
-    "grand": {
-      "$schema": "http://json-schema.org/draft/2020-12/schema",
-      "$ref": "#/definitions/GrandfatherType"
-    },
-    "some_base_property": {
-      "type": "integer"
-    }
-  },
-  "type": "object",
-  "$defs": {
-    "GrandfatherType": {
-      "required": ["family_name"],
-      "properties": {
-        "family_name": {
-          "type": "string"
-        }
-      },
-      "additionalProperties": false,
-      "type": "object"
-    }
-  }
-}
+jsonschema格式
 ```
-
-### PreferYAMLSchema
-
-JSON schemas can also be used to validate YAML, however YAML frequently uses
-different identifiers to JSON indicated by the `yaml:` tag. The `Reflector` will
-by default prefer `json:` tags over `yaml:` tags (and only use the latter if the
-former are not present). This behavior can be changed via the `PreferYAMLSchema`
-flag, that will switch this behavior: `yaml:` tags will be preferred over
-`json:` tags.
-
-With `PreferYAMLSchema: true`, the following struct:
-
-```go
-type Person struct {
-	FirstName string `json:"FirstName" yaml:"first_name"`
-}
-```
-
-would result in this schema:
-
-```json
-{
-  "$schema": "http://json-schema.org/draft/2020-12/schema",
-  "$ref": "#/$defs/TestYamlAndJson",
-  "$defs": {
-    "Person": {
-      "required": ["first_name"],
-      "properties": {
-        "first_name": {
-          "type": "string"
-        }
-      },
-      "additionalProperties": false,
-      "type": "object"
-    }
-  }
-}
-```
-
-whereas without the flag one obtains:
-
-```json
-{
-  "$schema": "http://json-schema.org/draft/2020-12/schema",
-  "$ref": "#/$defs/TestYamlAndJson",
-  "$defs": {
-    "Person": {
-      "required": ["FirstName"],
-      "properties": {
-        "first_name": {
-          "type": "string"
-        }
-      },
-      "additionalProperties": false,
-      "type": "object"
-    }
-  }
-}
-```
-
-### Using Go Comments
-
-Writing a good schema with descriptions inside tags can become cumbersome and tedious, especially if you already have some Go comments around your types and field definitions. If you'd like to take advantage of these existing comments, you can use the `AddGoComments(base, path string)` method that forms part of the reflector to parse your go files and automatically generate a dictionary of Go import paths, types, and fields, to individual comments. These will then be used automatically as description fields, and can be overridden with a manual definition if needed.
-
-Take a simplified example of a User struct which for the sake of simplicity we assume is defined inside this package:
-
-```go
-package main
-
-// User is used as a base to provide tests for comments.
-type User struct {
-	// Unique sequential identifier.
-	ID int `json:"id" jsonschema:"required"`
-	// Name of the user
-	Name string `json:"name"`
-}
-```
-
-To get the comments provided into your JSON schema, use a regular `Reflector` and add the go code using an import module URL and path. Fully qualified go module paths cannot be determined reliably by the `go/parser` library, so we need to introduce this manually:
-
-```go
-r := new(Reflector)
-if err := r.AddGoComments("github.com/invopop/jsonschema", "./"); err != nil {
-  // deal with error
-}
-s := r.Reflect(&User{})
-// output
-```
-
-Expect the results to be similar to:
-
-```json
-{
-  "$schema": "http://json-schema.org/draft/2020-12/schema",
-  "$ref": "#/$defs/User",
-  "$defs": {
-    "User": {
-      "required": ["id"],
-      "properties": {
-        "id": {
-          "type": "integer",
-          "description": "Unique sequential identifier."
-        },
-        "name": {
-          "type": "string",
-          "description": "Name of the user"
-        }
-      },
-      "additionalProperties": false,
-      "type": "object",
-      "description": "User is used as a base to provide tests for comments."
-    }
-  }
-}
-```
-
-### Custom Key Naming
-
-In some situations, the keys actually used to write files are different from Go structs'.
-
-This is often the case when writing a configuration file to YAML or JSON from a Go struct, or when returning a JSON response for a Web API: APIs typically use snake_case, while Go uses PascalCase.
-
-You can pass a `func(string) string` function to `Reflector`'s `KeyNamer` option to map Go field names to JSON key names and reflect the aforementionned transformations, without having to specify `json:"..."` on every struct field.
-
-For example, consider the following struct
-
-```go
-type User struct {
-  GivenName       string
-  PasswordSalted  []byte `json:"salted_password"`
-}
-```
-
-We can transform field names to snake_case in the generated JSON schema:
-
-```go
-r := new(jsonschema.Reflector)
-r.KeyNamer = strcase.SnakeCase // from package github.com/stoewer/go-strcase
-
-r.Reflect(&User{})
-```
-
-Will yield
-
-```diff
-  {
-    "$schema": "http://json-schema.org/draft/2020-12/schema",
-    "$ref": "#/$defs/User",
-    "$defs": {
-      "User": {
-        "properties": {
--         "GivenName": {
-+         "given_name": {
-            "type": "string"
-          },
-          "salted_password": {
-            "type": "string",
-            "contentEncoding": "base64"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
--       "required": ["GivenName", "salted_password"]
-+       "required": ["given_name", "salted_password"]
-      }
-    }
-  }
-```
-
-As you can see, if a field name has a `json:""` or `yaml:""` tag set, the `key` argument to `KeyNamer` will have the value of that tag (if a field name has both, the value of `key` will respect [`PreferYAMLSchema`](#preferyamlschema)).
-
-
-### Custom Type Definitions
-
-Sometimes it can be useful to have custom JSON Marshal and Unmarshal methods in your structs that automatically convert for example a string into an object.
-
-To override auto-generating an object type for your type, implement the `JSONSchema() *Schema` method and whatever is defined will be provided in the schema definitions.
-
-Take the following simplified example of a `CompactDate` that only includes the Year and Month:
-
-```go
-type CompactDate struct {
-	Year  int
-	Month int
-}
-
-func (d *CompactDate) UnmarshalJSON(data []byte) error {
-  if len(data) != 9 {
-    return errors.New("invalid compact date length")
-  }
-  var err error
-  d.Year, err = strconv.Atoi(string(data[1:5]))
-  if err != nil {
-    return err
-  }
-  d.Month, err = strconv.Atoi(string(data[7:8]))
-  if err != nil {
-    return err
-  }
-  return nil
-}
-
-func (d *CompactDate) MarshalJSON() ([]byte, error) {
-  buf := new(bytes.Buffer)
-  buf.WriteByte('"')
-  buf.WriteString(fmt.Sprintf("%d-%02d", d.Year, d.Month))
-  buf.WriteByte('"')
-  return buf.Bytes(), nil
-}
-
-func (CompactDate) JSONSchema() *Schema {
-	return &Schema{
-		Type:        "string",
-		Title:       "Compact Date",
-		Description: "Short date that only includes year and month",
-		Pattern:     "^[0-9]{4}-[0-1][0-9]$",
-	}
-}
-```
-
-The resulting schema generated for this struct would look like:
-
-```json
-{
-  "$schema": "http://json-schema.org/draft/2020-12/schema",
-  "$ref": "#/$defs/CompactDate",
-  "$defs": {
-    "CompactDate": {
-      "pattern": "^[0-9]{4}-[0-1][0-9]$",
-      "type": "string",
-      "title": "Compact Date",
-      "description": "Short date that only includes year and month"
-    }
-  }
-}
+{"$schema":"http://json-schema.org/draft-07/schema#","properties":{"config":{"type":"object","properties":{"openId":{"type":"string","format":"DBValidate"},"type":{"type":"string","format":"number","enum":["1","2"]},"status":{"type":"string","format":"number","enum":["0","1"]}},"required":["openId","type","status"]}},"type":"object"}
 ```
