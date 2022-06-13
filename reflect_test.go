@@ -1,4 +1,4 @@
-package jsonschema
+package jsonschemaline
 
 import (
 	"encoding/json"
@@ -500,16 +500,17 @@ func TestExample(t *testing.T) {
 
 func TestParseRaw(t *testing.T) {
 	raw := `
-	fullname=items[].id,src=PaginateOut.#.Fid,type=string,required
-	fullname=items[].openId,src=PaginateOut.#.Fopen_id,type=string,required
-	fullname=items[].type,src=PaginateOut.#.Fopen_id_type,type=string,required
-	fullname=items[].status,src=PaginateOut.#.Fstatus,type=string,required
-	fullname=pageInfo.pageIndex,src=input.pageIndex,type=string,required
-	fullname=pageInfo.pageSize,src=input.pageSize,type=string,required
-	fullname=pageInfo.total,src=PaginateTotalOut,type=string,required
+	version=http://json-schema.org/draft-07/schema#,id=hello_world
+	fullname=items[].id,src=PaginateOut.#.Fid,required
+	fullname=items[].openId,src=PaginateOut.#.Fopen_id,required
+	fullname=items[].type,src=PaginateOut.#.Fopen_id_type,required
+	fullname=items[].status,src=PaginateOut.#.Fstatus,required
+	fullname=pageInfo.pageIndex,src=input.pageIndex,required
+	fullname=pageInfo.pageSize,src=input.pageSize,required
+	fullname=pageInfo.total,src=PaginateTotalOut,required
  `
 	schema := new(Schema)
-	schema.ParseRaw(raw)
+	schema.Raw2Schema(raw)
 	b, err := schema.MarshalJSON()
 	if err != nil {
 		panic(err)
@@ -519,12 +520,12 @@ func TestParseRaw(t *testing.T) {
 }
 func TestParseRaw2(t *testing.T) {
 	raw := `
-	fullname=config.openId,dst=FopenID,format=DBValidate,type=string,required
-	fullname=config.type,dst=FopenIDType,enum=["1","2"],type=string,required
-	fullname=config.status,dst=Fstatus,enum=["0","1"],type=string,required
+	fullname=config.openId,dst=FopenID,format=DBValidate,required
+	fullname=config.type,dst=FopenIDType,enum=["1","2"],required
+	fullname=config.status,dst=Fstatus,enum=["0","1"],required
  `
 	schema := new(Schema)
-	schema.ParseRaw(raw)
+	schema.Raw2Schema(raw)
 	b, err := schema.MarshalJSON()
 	if err != nil {
 		panic(err)
@@ -534,8 +535,9 @@ func TestParseRaw2(t *testing.T) {
 }
 
 func TestPretreatTag(t *testing.T) {
-	str := `fullname=config.type,dst=FopenIDType,enum=["1","2"],type=string,required`
-	out := PretreatTag(str)
+	str := `fullname=config.type,dst=FopenIDType,enum=["1","2"],required`
+	schema := new(Schema)
+	out := schema.PretreatTag(str)
 	fmt.Println(out)
 
 }

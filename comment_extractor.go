@@ -1,4 +1,4 @@
-package jsonschema
+package jsonschemaline
 
 import (
 	"fmt"

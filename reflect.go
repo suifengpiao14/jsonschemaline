@@ -4,7 +4,7 @@
 // property names and if a property is required (omitempty is present).
 //
 // [1] http://json-schema.org/latest/json-schema-validation.html
-package jsonschema
+package jsonschemaline
 
 import (
 	"bytes"
@@ -632,22 +632,63 @@ func (t *Schema) structKeywordsFromTags(f reflect.StructField, parent *Schema, p
 	extras := strings.Split(f.Tag.Get("jsonschema_extras"), ",")
 	t.extraKeywords(extras)
 }
-func (t *Schema) ParseRaw(rawSchema string) {
+func (t *Schema) Raw2Schema(rawSchema string) {
 	EOF := "\n"
-	rawSchema = strings.ReplaceAll(rawSchema, "\r\n", EOF)
+	rawSchema = strings.TrimSpace(strings.ReplaceAll(rawSchema, "\r\n", EOF))
 	arr := strings.Split(rawSchema, EOF)
-	for _, raw := range arr {
+	for i, raw := range arr {
 		raw = strings.TrimSpace(raw)
 		if raw == "" {
 			continue
 		}
-		raw = PretreatTag(raw)
+		if i == 0 && strings.Contains(raw, "version=") {
+			t.parseMeta(raw)
+			continue
+		}
+		raw = t.PretreatTag(raw)
 		tags := SplitOnUnescapedCommas(raw)
 		fullname := t.getFullname(tags)
 		parent, propertyName := t.parseFullname(fullname)
 		property := parent.GetByFullname(propertyName)
 		property.structKeywordsFromRaw(tags, parent, propertyName)
 	}
+}
+
+func (t *Schema) parseMeta(meta string) {
+	arr := strings.Split(meta, ",")
+	for _, kvStr := range arr {
+		kvArr := strings.SplitN(kvStr, "=", 2)
+		if len(kvArr) == 2 {
+			k, v := strings.TrimSpace(kvArr[0]), strings.TrimSpace(kvArr[1])
+			switch k {
+			case "version":
+				t.Version = v
+			case "id":
+				t.ID = ID(v)
+			}
+		}
+	}
+}
+
+//PretreatTag 处理enum []格式
+func (t *Schema) PretreatTag(tag string) (formatTag string) {
+	preg := "enum=\\[(.*)\\],"
+	formatTag = strings.Trim(tag, ",")
+	reg := regexp.MustCompile(preg)
+	matchArr := reg.FindAllStringSubmatch(tag, -1)
+	if len(matchArr) > 0 {
+		replaceStr := "enum="
+		for _, matchRaw := range matchArr {
+			raw := strings.ReplaceAll(matchRaw[1], `"`, "")
+			valArr := strings.Split(raw, ",")
+			replaceStr = fmt.Sprintf("enum=%s,", strings.Join(valArr, ",enum="))
+			formatTag = strings.ReplaceAll(formatTag, matchRaw[0], replaceStr)
+		}
+	}
+	if !strings.Contains(tag, "type=") { // 增加默认type=string
+		formatTag = fmt.Sprintf("%s,type=string", formatTag)
+	}
+	return formatTag
 }
 
 func (t *Schema) getFullname(tags []string) (fullname string) {
@@ -1018,24 +1059,6 @@ func (t *Schema) setExtra(key, val string) {
 			t.Extras[key] = val
 		}
 	}
-}
-
-//PretreatTag 处理enum []格式
-func PretreatTag(tag string) (formatTag string) {
-	preg := "enum=\\[(.*)\\],"
-	formatTag = tag
-	reg := regexp.MustCompile(preg)
-	matchArr := reg.FindAllStringSubmatch(tag, -1)
-	if len(matchArr) > 0 {
-		replaceStr := "enum="
-		for _, matchRaw := range matchArr {
-			raw := strings.ReplaceAll(matchRaw[1], `"`, "")
-			valArr := strings.Split(raw, ",")
-			replaceStr = fmt.Sprintf("enum=%s,", strings.Join(valArr, ",enum="))
-			formatTag = strings.ReplaceAll(formatTag, matchRaw[0], replaceStr)
-		}
-	}
-	return formatTag
 }
 
 func requiredFromJSONTags(tags []string) bool {

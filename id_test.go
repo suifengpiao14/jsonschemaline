@@ -1,4 +1,4 @@
-package jsonschema_test
+package jsonschemaline_test
 
 import (
 	"testing"
