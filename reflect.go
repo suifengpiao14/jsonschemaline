@@ -99,6 +99,7 @@ type Schema struct {
 	Src          string `json:"src,omitempty"`
 	Dst          string `json:"dst,omitempty"`
 	Fullname     string `json:"fullname,omitempty"`
+	Tpl          string `json:"tpl,omitempty"`
 	PropertyName string `json:"-"`
 }
 
@@ -645,7 +646,7 @@ func (t *Schema) Raw2Schema(rawSchema string) {
 			t.parseMeta(raw)
 			continue
 		}
-		raw = t.PretreatTag(raw)
+		raw = PretreatTag(raw)
 		tags := SplitOnUnescapedCommas(raw)
 		fullname := t.getFullname(tags)
 		parent, propertyName := t.parseFullname(fullname)
@@ -668,27 +669,6 @@ func (t *Schema) parseMeta(meta string) {
 			}
 		}
 	}
-}
-
-//PretreatTag 处理enum []格式
-func (t *Schema) PretreatTag(tag string) (formatTag string) {
-	preg := "enum=\\[(.*)\\],"
-	formatTag = strings.Trim(tag, ",")
-	reg := regexp.MustCompile(preg)
-	matchArr := reg.FindAllStringSubmatch(tag, -1)
-	if len(matchArr) > 0 {
-		replaceStr := "enum="
-		for _, matchRaw := range matchArr {
-			raw := strings.ReplaceAll(matchRaw[1], `"`, "")
-			valArr := strings.Split(raw, ",")
-			replaceStr = fmt.Sprintf("enum=%s,", strings.Join(valArr, ",enum="))
-			formatTag = strings.ReplaceAll(formatTag, matchRaw[0], replaceStr)
-		}
-	}
-	if !strings.Contains(tag, "type=") { // 增加默认type=string
-		formatTag = fmt.Sprintf("%s,type=string", formatTag)
-	}
-	return formatTag
 }
 
 func (t *Schema) getFullname(tags []string) (fullname string) {
@@ -778,7 +758,7 @@ func (t *Schema) GetByName(name string) *Schema {
 	return newSchema
 }
 
-func (t *Schema) structKeywordsFromRaw(tags []string, parent *Schema, propertyName string) {
+func (t *Schema) structKeywordsFromRaw(tags [][2]string, parent *Schema, propertyName string) {
 	t.Description = ""
 	t.commonKeywords(tags)
 	t.genericKeywords(tags, parent, propertyName)
@@ -806,22 +786,16 @@ func (t *Schema) structKeywordsFromRaw(tags []string, parent *Schema, propertyNa
 }
 
 // read struct tags for generic keyworks
-func (t *Schema) genericKeywords(tags []string, parent *Schema, propertyName string) {
+func (t *Schema) genericKeywords(tags [][2]string, parent *Schema, propertyName string) {
 	typ := "string"
-	kvSet := make([][2]string, 0)
-	for _, tag := range tags {
-		tag = strings.TrimSpace(tag)
-		nameValue := strings.Split(tag, "=")
-		if len(nameValue) == 2 {
-			if nameValue[0] == "type" {
-				typ = nameValue[1]
-			}
-			kv := [2]string{nameValue[0], nameValue[1]}
-			kvSet = append(kvSet, kv)
+	for _, nameValue := range tags {
+		if nameValue[0] == "type" {
+			typ = nameValue[1]
+			break
 		}
 	}
 	t.Type = typ // enum 需要使用type,所以需要提前处理
-	for _, nameValue := range kvSet {
+	for _, nameValue := range tags {
 		name, val := nameValue[0], nameValue[1]
 		switch name {
 		case "title":
@@ -874,12 +848,8 @@ func (t *Schema) genericKeywords(tags []string, parent *Schema, propertyName str
 }
 
 // read struct tags for boolean type keyworks
-func (t *Schema) booleanKeywords(tags []string) {
-	for _, tag := range tags {
-		nameValue := strings.Split(tag, "=")
-		if len(nameValue) != 2 {
-			continue
-		}
+func (t *Schema) booleanKeywords(tags [][2]string) {
+	for _, nameValue := range tags {
 		name, val := nameValue[0], nameValue[1]
 		if name == "default" {
 			if val == "true" {
@@ -892,85 +862,75 @@ func (t *Schema) booleanKeywords(tags []string) {
 }
 
 // read struct tags for string type keyworks
-func (t *Schema) stringKeywords(tags []string) {
-	for _, tag := range tags {
-		nameValue := strings.Split(tag, "=")
-		if len(nameValue) == 2 {
-			name, val := nameValue[0], nameValue[1]
-			switch name {
-			case "minLength":
-				i, _ := strconv.Atoi(val)
-				t.MinLength = i
-			case "maxLength":
-				i, _ := strconv.Atoi(val)
-				t.MaxLength = i
-			case "pattern":
-				t.Pattern = val
-			case "format":
-				switch val {
-				case "date-time", "email", "hostname", "ipv4", "ipv6", "uri", "uuid":
-					t.Format = val
-					break
-				}
-			case "readOnly":
-				i, _ := strconv.ParseBool(val)
-				t.ReadOnly = i
-			case "writeOnly":
-				i, _ := strconv.ParseBool(val)
-				t.WriteOnly = i
-			case "default":
-				t.Default = val
-			case "example":
-				t.Examples = append(t.Examples, val)
+func (t *Schema) stringKeywords(tags [][2]string) {
+	for _, nameValue := range tags {
+		name, val := nameValue[0], nameValue[1]
+		switch name {
+		case "minLength":
+			i, _ := strconv.Atoi(val)
+			t.MinLength = i
+		case "maxLength":
+			i, _ := strconv.Atoi(val)
+			t.MaxLength = i
+		case "pattern":
+			t.Pattern = val
+		case "format":
+			switch val {
+			case "date-time", "email", "hostname", "ipv4", "ipv6", "uri", "uuid":
+				t.Format = val
+				break
 			}
+		case "readOnly":
+			i, _ := strconv.ParseBool(val)
+			t.ReadOnly = i
+		case "writeOnly":
+			i, _ := strconv.ParseBool(val)
+			t.WriteOnly = i
+		case "default":
+			t.Default = val
+		case "example":
+			t.Examples = append(t.Examples, val)
 		}
 	}
 } // read struct tags for string type keyworks
-func (t *Schema) commonKeywords(tags []string) {
-	for _, tag := range tags {
-		nameValue := strings.Split(tag, "=")
-		if len(nameValue) == 2 {
-			name, val := nameValue[0], nameValue[1]
-			switch name {
-			case "src":
-				t.Src = val
-			case "dst":
-				t.Dst = val
-
-			}
+func (t *Schema) commonKeywords(tags [][2]string) {
+	for _, nameValue := range tags {
+		name, val := nameValue[0], nameValue[1]
+		switch name {
+		case "src":
+			t.Src = val
+		case "dst":
+			t.Dst = val
 		}
 	}
 }
 
 // read struct tags for numberic type keyworks
-func (t *Schema) numbericKeywords(tags []string) {
-	for _, tag := range tags {
-		nameValue := strings.Split(tag, "=")
-		if len(nameValue) == 2 {
-			name, val := nameValue[0], nameValue[1]
-			switch name {
-			case "multipleOf":
-				i, _ := strconv.Atoi(val)
-				t.MultipleOf = i
-			case "minimum":
-				i, _ := strconv.Atoi(val)
-				t.Minimum = i
-			case "maximum":
-				i, _ := strconv.Atoi(val)
-				t.Maximum = i
-			case "exclusiveMaximum":
-				b, _ := strconv.ParseBool(val)
-				t.ExclusiveMaximum = b
-			case "exclusiveMinimum":
-				b, _ := strconv.ParseBool(val)
-				t.ExclusiveMinimum = b
-			case "default":
-				i, _ := strconv.Atoi(val)
-				t.Default = i
-			case "example":
-				if i, err := strconv.Atoi(val); err == nil {
-					t.Examples = append(t.Examples, i)
-				}
+func (t *Schema) numbericKeywords(tags [][2]string) {
+	for _, nameValue := range tags {
+		name, val := nameValue[0], nameValue[1]
+		switch name {
+		case "multipleOf":
+			i, _ := strconv.Atoi(val)
+			t.MultipleOf = i
+		case "minimum":
+			i, _ := strconv.Atoi(val)
+			t.Minimum = i
+		case "maximum":
+			i, _ := strconv.Atoi(val)
+			t.Maximum = i
+		case "exclusiveMaximum":
+			b, _ := strconv.ParseBool(val)
+			t.ExclusiveMaximum = b
+		case "exclusiveMinimum":
+			b, _ := strconv.ParseBool(val)
+			t.ExclusiveMinimum = b
+		case "default":
+			i, _ := strconv.Atoi(val)
+			t.Default = i
+		case "example":
+			if i, err := strconv.Atoi(val); err == nil {
+				t.Examples = append(t.Examples, i)
 			}
 		}
 	}
@@ -993,34 +953,31 @@ func (t *Schema) numbericKeywords(tags []string) {
 // }
 
 // read struct tags for array type keyworks
-func (t *Schema) arrayKeywords(tags []string) {
+func (t *Schema) arrayKeywords(tags [][2]string) {
 	var defaultValues []interface{}
-	for _, tag := range tags {
-		nameValue := strings.Split(tag, "=")
-		if len(nameValue) == 2 {
-			name, val := nameValue[0], nameValue[1]
-			switch name {
-			case "minItems":
+	for _, nameValue := range tags {
+		name, val := nameValue[0], nameValue[1]
+		switch name {
+		case "minItems":
+			i, _ := strconv.Atoi(val)
+			t.MinItems = i
+		case "maxItems":
+			i, _ := strconv.Atoi(val)
+			t.MaxItems = i
+		case "uniqueItems":
+			t.UniqueItems = true
+		case "default":
+			defaultValues = append(defaultValues, val)
+		case "enum":
+			switch t.Items.Type {
+			case "string":
+				t.Items.Enum = append(t.Items.Enum, val)
+			case "integer":
 				i, _ := strconv.Atoi(val)
-				t.MinItems = i
-			case "maxItems":
-				i, _ := strconv.Atoi(val)
-				t.MaxItems = i
-			case "uniqueItems":
-				t.UniqueItems = true
-			case "default":
-				defaultValues = append(defaultValues, val)
-			case "enum":
-				switch t.Items.Type {
-				case "string":
-					t.Items.Enum = append(t.Items.Enum, val)
-				case "integer":
-					i, _ := strconv.Atoi(val)
-					t.Items.Enum = append(t.Items.Enum, i)
-				case "number":
-					f, _ := strconv.ParseFloat(val, 64)
-					t.Items.Enum = append(t.Items.Enum, f)
-				}
+				t.Items.Enum = append(t.Items.Enum, i)
+			case "number":
+				f, _ := strconv.ParseFloat(val, 64)
+				t.Items.Enum = append(t.Items.Enum, f)
 			}
 		}
 	}
@@ -1029,12 +986,9 @@ func (t *Schema) arrayKeywords(tags []string) {
 	}
 }
 
-func (t *Schema) extraKeywords(tags []string) {
-	for _, tag := range tags {
-		nameValue := strings.Split(tag, "=")
-		if len(nameValue) == 2 {
-			t.setExtra(nameValue[0], nameValue[1])
-		}
+func (t *Schema) extraKeywords(tags [][2]string) {
+	for _, nameValue := range tags {
+		t.setExtra(nameValue[0], nameValue[1])
 	}
 }
 
@@ -1233,6 +1187,53 @@ func (r *Reflector) typeName(t reflect.Type) string {
 		}
 	}
 	return t.Name()
+}
+
+func SplitRawSchema(rawSchema string) [][][2]string {
+	EOF := "\n"
+	rawSchema = strings.TrimSpace(strings.ReplaceAll(rawSchema, "\r\n", EOF))
+	arr := strings.Split(rawSchema, EOF)
+	out := make([][][2]string, 0)
+	for _, raw := range arr {
+		raw = strings.TrimSpace(raw)
+		if raw == "" {
+			continue
+		}
+		raw = PretreatTag(raw)
+		kvStrArr := SplitOnUnescapedCommas(raw)
+		oneRaw := make([][2]string, 0)
+		for _, kvStr := range kvStrArr {
+			kvArr := strings.SplitN(kvStr, "=", 2)
+			if len(kvArr) == 2 {
+				k, v := strings.TrimSpace(kvArr[0]), strings.TrimSpace(kvArr[1])
+				oneRaw = append(oneRaw, [2]string{k, v})
+			}
+		}
+		out = append(out, oneRaw)
+
+	}
+	return out
+}
+
+//PretreatTag 处理enum []格式
+func PretreatTag(tag string) (formatTag string) {
+	preg := "enum=\\[(.*)\\],"
+	formatTag = strings.Trim(tag, ",")
+	reg := regexp.MustCompile(preg)
+	matchArr := reg.FindAllStringSubmatch(tag, -1)
+	if len(matchArr) > 0 {
+		replaceStr := "enum="
+		for _, matchRaw := range matchArr {
+			raw := strings.ReplaceAll(matchRaw[1], `"`, "")
+			valArr := strings.Split(raw, ",")
+			replaceStr = fmt.Sprintf("enum=%s,", strings.Join(valArr, ",enum="))
+			formatTag = strings.ReplaceAll(formatTag, matchRaw[0], replaceStr)
+		}
+	}
+	if !strings.Contains(tag, "type=") { // 增加默认type=string
+		formatTag = fmt.Sprintf("%s,type=string", formatTag)
+	}
+	return formatTag
 }
 
 // Split on commas that are not preceded by `\`.

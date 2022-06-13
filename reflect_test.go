@@ -536,8 +536,7 @@ func TestParseRaw2(t *testing.T) {
 
 func TestPretreatTag(t *testing.T) {
 	str := `fullname=config.type,dst=FopenIDType,enum=["1","2"],required`
-	schema := new(Schema)
-	out := schema.PretreatTag(str)
+	out := PretreatTag(str)
 	fmt.Println(out)
 
 }
