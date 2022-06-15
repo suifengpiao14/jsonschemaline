@@ -110,6 +110,11 @@ var (
 	FalseSchema = &Schema{boolean: &[]bool{false}[0]}
 )
 
+type KVpair struct {
+	Key   string
+	Value string
+}
+
 // customSchemaImpl is used to detect if the type provides it's own
 // custom Schema Type definition to use instead. Very useful for situations
 // where there are custom JSON Marshal and Unmarshal methods.
@@ -614,8 +619,9 @@ func (r *Reflector) lookupID(t reflect.Type) ID {
 
 func (t *Schema) structKeywordsFromTags(f reflect.StructField, parent *Schema, propertyName string) {
 	t.Description = f.Tag.Get("jsonschema_description")
+	raw := f.Tag.Get("jsonschema")
+	tags := SplitLineSchema(raw)
 
-	tags := SplitOnUnescapedCommas(f.Tag.Get("jsonschema"))
 	t.genericKeywords(tags, parent, propertyName)
 	t.commonKeywords(tags)
 	switch t.Type {
@@ -630,59 +636,57 @@ func (t *Schema) structKeywordsFromTags(f reflect.StructField, parent *Schema, p
 	case "boolean":
 		t.booleanKeywords(tags)
 	}
-	extras := strings.Split(f.Tag.Get("jsonschema_extras"), ",")
+	extras := SplitLineSchema(f.Tag.Get("jsonschema_extras"))
 	t.extraKeywords(extras)
 }
 func (t *Schema) Raw2Schema(rawSchema string) {
-	EOF := "\n"
-	rawSchema = strings.TrimSpace(strings.ReplaceAll(rawSchema, "\r\n", EOF))
-	arr := strings.Split(rawSchema, EOF)
-	for i, raw := range arr {
-		raw = strings.TrimSpace(raw)
-		if raw == "" {
+	nultilineTags := SplitMultilineSchema(rawSchema)
+	for i, lineTags := range nultilineTags {
+		if i == 0 && t.IsMetaLine(lineTags) {
+			t.parseMeta(lineTags)
 			continue
 		}
-		if i == 0 && strings.Contains(raw, "version=") {
-			t.parseMeta(raw)
-			continue
-		}
-		raw = PretreatTag(raw)
-		tags := SplitOnUnescapedCommas(raw)
-		fullname := t.getFullname(tags)
+		fullname := t.getFullname(lineTags)
 		parent, propertyName := t.parseFullname(fullname)
 		property := parent.GetByFullname(propertyName)
-		property.structKeywordsFromRaw(tags, parent, propertyName)
+		property.structKeywordsFromRaw(lineTags, parent, propertyName)
 	}
 }
 
-func (t *Schema) parseMeta(meta string) {
-	arr := strings.Split(meta, ",")
-	for _, kvStr := range arr {
-		kvArr := strings.SplitN(kvStr, "=", 2)
-		if len(kvArr) == 2 {
-			k, v := strings.TrimSpace(kvArr[0]), strings.TrimSpace(kvArr[1])
-			switch k {
-			case "version":
-				t.Version = v
-			case "id":
-				t.ID = ID(v)
-			}
+func (t *Schema) IsMetaLine(lineTags []KVpair) bool {
+	hasFullname, hasVersion := false, false
+	for _, kvPair := range lineTags {
+		switch kvPair.Key {
+		case "version":
+			hasVersion = true
+		case "fullname":
+			hasFullname = true
+		}
+	}
+	is := hasVersion && !hasFullname
+	return is
+}
+
+func (t *Schema) parseMeta(metaLineTags []KVpair) {
+	for _, kvArr := range metaLineTags {
+		switch kvArr.Key {
+		case "version":
+			t.Version = kvArr.Value
+		case "id":
+			t.ID = ID(kvArr.Value)
 		}
 	}
 }
 
-func (t *Schema) getFullname(tags []string) (fullname string) {
-	for _, tag := range tags {
-		tag = strings.TrimSpace(tag)
-		if strings.HasPrefix(tag, "fullname") {
-			nameValue := strings.Split(tag, "=")
-			if len(nameValue) == 2 {
-				return nameValue[1]
-			}
+func (t *Schema) getFullname(lineTags []KVpair) (fullname string) {
+	kvPairArr := make([]string, 0)
+	for _, kvArr := range lineTags {
+		if kvArr.Key == "fullname" {
+			return kvArr.Value
 		}
-
+		kvPairArr = append(kvPairArr, fmt.Sprintf("%s=%s", kvArr.Key, kvArr.Value))
 	}
-	err := errors.Errorf("fullname required,got tag:%#v", tags)
+	err := errors.Errorf("fullname required,got tag:%#v", strings.Join(kvPairArr, ","))
 	panic(err)
 }
 func (t *Schema) parseFullname(fullname string) (parent *Schema, propertyName string) {
@@ -758,7 +762,7 @@ func (t *Schema) GetByName(name string) *Schema {
 	return newSchema
 }
 
-func (t *Schema) structKeywordsFromRaw(tags [][2]string, parent *Schema, propertyName string) {
+func (t *Schema) structKeywordsFromRaw(tags []KVpair, parent *Schema, propertyName string) {
 	t.Description = ""
 	t.commonKeywords(tags)
 	t.genericKeywords(tags, parent, propertyName)
@@ -786,36 +790,35 @@ func (t *Schema) structKeywordsFromRaw(tags [][2]string, parent *Schema, propert
 }
 
 // read struct tags for generic keyworks
-func (t *Schema) genericKeywords(tags [][2]string, parent *Schema, propertyName string) {
+func (t *Schema) genericKeywords(tags []KVpair, parent *Schema, propertyName string) {
 	typ := "string"
-	for _, nameValue := range tags {
-		if nameValue[0] == "type" {
-			typ = nameValue[1]
+	for _, kvPair := range tags {
+		if kvPair.Key == "type" {
+			typ = kvPair.Value
 			break
 		}
 	}
 	t.Type = typ // enum 需要使用type,所以需要提前处理
-	for _, nameValue := range tags {
-		name, val := nameValue[0], nameValue[1]
-		switch name {
+	for _, kvPair := range tags {
+		switch kvPair.Key {
 		case "title":
-			t.Title = val
+			t.Title = kvPair.Value
 		case "description":
-			t.Description = val
+			t.Description = kvPair.Value
 		case "type":
-			t.Type = val
+			t.Type = kvPair.Value
 		case "anchor":
-			t.Anchor = val
+			t.Anchor = kvPair.Value
 		case "oneof_required":
 			var typeFound *Schema
 			for i := range parent.OneOf {
-				if parent.OneOf[i].Title == nameValue[1] {
+				if parent.OneOf[i].Title == kvPair.Value {
 					typeFound = parent.OneOf[i]
 				}
 			}
 			if typeFound == nil {
 				typeFound = &Schema{
-					Title:    nameValue[1],
+					Title:    kvPair.Value,
 					Required: []string{},
 				}
 				parent.OneOf = append(parent.OneOf, typeFound)
@@ -826,7 +829,7 @@ func (t *Schema) genericKeywords(tags [][2]string, parent *Schema, propertyName 
 				t.OneOf = make([]*Schema, 0, 1)
 			}
 			t.Type = ""
-			types := strings.Split(nameValue[1], ";")
+			types := strings.Split(kvPair.Value, ";")
 			for _, ty := range types {
 				t.OneOf = append(t.OneOf, &Schema{
 					Type: ty,
@@ -835,12 +838,12 @@ func (t *Schema) genericKeywords(tags [][2]string, parent *Schema, propertyName 
 		case "enum":
 			switch t.Type {
 			case "string":
-				t.Enum = append(t.Enum, val)
+				t.Enum = append(t.Enum, kvPair.Value)
 			case "integer":
-				i, _ := strconv.Atoi(val)
+				i, _ := strconv.Atoi(kvPair.Value)
 				t.Enum = append(t.Enum, i)
 			case "number":
-				f, _ := strconv.ParseFloat(val, 64)
+				f, _ := strconv.ParseFloat(kvPair.Value, 64)
 				t.Enum = append(t.Enum, f)
 			}
 		}
@@ -848,13 +851,12 @@ func (t *Schema) genericKeywords(tags [][2]string, parent *Schema, propertyName 
 }
 
 // read struct tags for boolean type keyworks
-func (t *Schema) booleanKeywords(tags [][2]string) {
-	for _, nameValue := range tags {
-		name, val := nameValue[0], nameValue[1]
-		if name == "default" {
-			if val == "true" {
+func (t *Schema) booleanKeywords(tags []KVpair) {
+	for _, kvPair := range tags {
+		if kvPair.Key == "default" {
+			if kvPair.Value == "true" {
 				t.Default = true
-			} else if val == "false" {
+			} else if kvPair.Value == "false" {
 				t.Default = false
 			}
 		}
@@ -862,40 +864,39 @@ func (t *Schema) booleanKeywords(tags [][2]string) {
 }
 
 // read struct tags for string type keyworks
-func (t *Schema) stringKeywords(tags [][2]string) {
-	for _, nameValue := range tags {
-		name, val := nameValue[0], nameValue[1]
-		switch name {
+func (t *Schema) stringKeywords(tags []KVpair) {
+	for _, kvPair := range tags {
+		switch kvPair.Key {
 		case "minLength":
-			i, _ := strconv.Atoi(val)
+			i, _ := strconv.Atoi(kvPair.Value)
 			t.MinLength = i
 		case "maxLength":
-			i, _ := strconv.Atoi(val)
+			i, _ := strconv.Atoi(kvPair.Value)
 			t.MaxLength = i
 		case "pattern":
-			t.Pattern = val
+			t.Pattern = kvPair.Value
 		case "format":
-			switch val {
+			switch kvPair.Value {
 			case "date-time", "email", "hostname", "ipv4", "ipv6", "uri", "uuid":
-				t.Format = val
+				t.Format = kvPair.Value
 				break
 			}
 		case "readOnly":
-			i, _ := strconv.ParseBool(val)
+			i, _ := strconv.ParseBool(kvPair.Value)
 			t.ReadOnly = i
 		case "writeOnly":
-			i, _ := strconv.ParseBool(val)
+			i, _ := strconv.ParseBool(kvPair.Value)
 			t.WriteOnly = i
 		case "default":
-			t.Default = val
+			t.Default = kvPair.Value
 		case "example":
-			t.Examples = append(t.Examples, val)
+			t.Examples = append(t.Examples, kvPair.Value)
 		}
 	}
 } // read struct tags for string type keyworks
-func (t *Schema) commonKeywords(tags [][2]string) {
-	for _, nameValue := range tags {
-		name, val := nameValue[0], nameValue[1]
+func (t *Schema) commonKeywords(tags []KVpair) {
+	for _, kvPair := range tags {
+		name, val := kvPair.Key, kvPair.Value
 		switch name {
 		case "src":
 			t.Src = val
@@ -906,9 +907,9 @@ func (t *Schema) commonKeywords(tags [][2]string) {
 }
 
 // read struct tags for numberic type keyworks
-func (t *Schema) numbericKeywords(tags [][2]string) {
-	for _, nameValue := range tags {
-		name, val := nameValue[0], nameValue[1]
+func (t *Schema) numbericKeywords(tags []KVpair) {
+	for _, kvPair := range tags {
+		name, val := kvPair.Key, kvPair.Value
 		switch name {
 		case "multipleOf":
 			i, _ := strconv.Atoi(val)
@@ -939,8 +940,8 @@ func (t *Schema) numbericKeywords(tags [][2]string) {
 // read struct tags for object type keyworks
 // func (t *Type) objectKeywords(tags []string) {
 //     for _, tag := range tags{
-//         nameValue := strings.Split(tag, "=")
-//         name, val := nameValue[0], nameValue[1]
+//         kvPair := strings.Split(tag, "=")
+//         name, val := kvPair.Key, kvPair.Value
 //         switch name{
 //             case "dependencies":
 //                 t.Dependencies = val
@@ -953,10 +954,10 @@ func (t *Schema) numbericKeywords(tags [][2]string) {
 // }
 
 // read struct tags for array type keyworks
-func (t *Schema) arrayKeywords(tags [][2]string) {
+func (t *Schema) arrayKeywords(tags []KVpair) {
 	var defaultValues []interface{}
-	for _, nameValue := range tags {
-		name, val := nameValue[0], nameValue[1]
+	for _, kvPair := range tags {
+		name, val := kvPair.Key, kvPair.Value
 		switch name {
 		case "minItems":
 			i, _ := strconv.Atoi(val)
@@ -986,9 +987,9 @@ func (t *Schema) arrayKeywords(tags [][2]string) {
 	}
 }
 
-func (t *Schema) extraKeywords(tags [][2]string) {
-	for _, nameValue := range tags {
-		t.setExtra(nameValue[0], nameValue[1])
+func (t *Schema) extraKeywords(tags []KVpair) {
+	for _, kvPair := range tags {
+		t.setExtra(kvPair.Key, kvPair.Value)
 	}
 }
 
@@ -1028,24 +1029,24 @@ func requiredFromJSONTags(tags []string) bool {
 	return true
 }
 
-func requiredFromJSONSchemaTags(tags []string) bool {
+func requiredFromJSONSchemaTags(tags []KVpair) bool {
 	if ignoredByJSONSchemaTags(tags) {
 		return false
 	}
-	for _, tag := range tags {
-		if tag == "required" {
+	for _, kvPair := range tags {
+		if kvPair.Key == "required" {
 			return true
 		}
 	}
 	return false
 }
 
-func nullableFromJSONSchemaTags(tags []string) bool {
+func nullableFromJSONSchemaTags(tags []KVpair) bool {
 	if ignoredByJSONSchemaTags(tags) {
 		return false
 	}
-	for _, tag := range tags {
-		if tag == "nullable" {
+	for _, kvPair := range tags {
+		if kvPair.Key == "nullable" {
 			return true
 		}
 	}
@@ -1065,8 +1066,8 @@ func ignoredByJSONTags(tags []string) bool {
 	return tags[0] == "-"
 }
 
-func ignoredByJSONSchemaTags(tags []string) bool {
-	return tags[0] == "-"
+func ignoredByJSONSchemaTags(tags []KVpair) bool {
+	return tags[0].Key == "-"
 }
 
 func (r *Reflector) reflectFieldName(f reflect.StructField) (string, bool, bool, bool) {
@@ -1084,8 +1085,8 @@ func (r *Reflector) reflectFieldName(f reflect.StructField) (string, bool, bool,
 		return "", false, false, false
 	}
 
-	jsonSchemaTags := strings.Split(f.Tag.Get("jsonschema"), ",")
-	if ignoredByJSONSchemaTags(jsonSchemaTags) {
+	tagRawArr := SplitLineSchema(f.Tag.Get("jsonschema"))
+	if ignoredByJSONSchemaTags(tagRawArr) {
 		return "", false, false, false
 	}
 
@@ -1093,10 +1094,10 @@ func (r *Reflector) reflectFieldName(f reflect.StructField) (string, bool, bool,
 	required := requiredFromJSONTags(jsonTagsList)
 
 	if r.RequiredFromJSONSchemaTags {
-		required = requiredFromJSONSchemaTags(jsonSchemaTags)
+		required = requiredFromJSONSchemaTags(tagRawArr)
 	}
 
-	nullable := nullableFromJSONSchemaTags(jsonSchemaTags)
+	nullable := nullableFromJSONSchemaTags(tagRawArr)
 
 	if jsonTagsList[0] != "" {
 		name = jsonTagsList[0]
@@ -1189,28 +1190,33 @@ func (r *Reflector) typeName(t reflect.Type) string {
 	return t.Name()
 }
 
-func SplitRawSchema(rawSchema string) [][][2]string {
+func SplitMultilineSchema(rawSchema string) [][]KVpair {
 	EOF := "\n"
 	rawSchema = strings.TrimSpace(strings.ReplaceAll(rawSchema, "\r\n", EOF))
 	arr := strings.Split(rawSchema, EOF)
-	out := make([][][2]string, 0)
+	out := make([][]KVpair, 0)
 	for _, raw := range arr {
 		raw = strings.TrimSpace(raw)
 		if raw == "" {
 			continue
 		}
-		raw = PretreatTag(raw)
-		kvStrArr := SplitOnUnescapedCommas(raw)
-		oneRaw := make([][2]string, 0)
-		for _, kvStr := range kvStrArr {
-			kvArr := strings.SplitN(kvStr, "=", 2)
-			if len(kvArr) == 2 {
-				k, v := strings.TrimSpace(kvArr[0]), strings.TrimSpace(kvArr[1])
-				oneRaw = append(oneRaw, [2]string{k, v})
-			}
-		}
+		oneRaw := SplitLineSchema(raw)
 		out = append(out, oneRaw)
 
+	}
+	return out
+}
+
+func SplitLineSchema(oneRawSchema string) []KVpair {
+	oneRawSchema = PretreatTag(oneRawSchema)
+	kvStrArr := SplitOnUnescapedCommas(oneRawSchema)
+	out := make([]KVpair, 0)
+	for _, kvStr := range kvStrArr {
+		kvArr := strings.SplitN(kvStr, "=", 2)
+		if len(kvArr) == 2 {
+			k, v := strings.TrimSpace(kvArr[0]), strings.TrimSpace(kvArr[1])
+			out = append(out, KVpair{k, v})
+		}
 	}
 	return out
 }
@@ -1230,9 +1236,25 @@ func PretreatTag(tag string) (formatTag string) {
 			formatTag = strings.ReplaceAll(formatTag, matchRaw[0], replaceStr)
 		}
 	}
-	if !strings.Contains(tag, "type=") { // 增加默认type=string
-		formatTag = fmt.Sprintf("%s,type=string", formatTag)
+
+	hasType := false
+	kvStrArr := strings.Split(formatTag, ",")
+	tmpArr := make([]string, 0)
+	for _, kvStr := range kvStrArr {
+		kvStr = strings.TrimSpace(kvStr)
+		kvArr := strings.SplitN(kvStr, "=", 2)
+		k, v := strings.TrimSpace(kvArr[0]), strings.TrimSpace(kvArr[1])
+		switch k {
+		case "required", "nullable":
+			v = ""
+		}
+		hasType = hasType || k == "type"
+		tmpArr = append(tmpArr, fmt.Sprintf("%s=%s", k, v))
 	}
+	if !hasType {
+		tmpArr = append(tmpArr, "type=string") // 增加默认type=string
+	}
+	formatTag = strings.Join(tmpArr, ",")
 	return formatTag
 }
 
