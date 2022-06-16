@@ -1243,11 +1243,10 @@ func PretreatTag(tag string) (formatTag string) {
 	for _, kvStr := range kvStrArr {
 		kvStr = strings.TrimSpace(kvStr)
 		kvArr := strings.SplitN(kvStr, "=", 2)
-		k, v := strings.TrimSpace(kvArr[0]), strings.TrimSpace(kvArr[1])
-		switch k {
-		case "required", "nullable":
-			v = ""
+		if len(kvArr) == 1 {
+			kvArr = append(kvArr, "")
 		}
+		k, v := strings.TrimSpace(kvArr[0]), strings.TrimSpace(kvArr[1])
 		hasType = hasType || k == "type"
 		tmpArr = append(tmpArr, fmt.Sprintf("%s=%s", k, v))
 	}
