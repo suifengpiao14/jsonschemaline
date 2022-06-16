@@ -639,9 +639,9 @@ func (t *Schema) structKeywordsFromTags(f reflect.StructField, parent *Schema, p
 	extras := SplitLineSchema(f.Tag.Get("jsonschema_extras"))
 	t.extraKeywords(extras)
 }
-func (t *Schema) Raw2Schema(rawSchema string) {
-	nultilineTags := SplitMultilineSchema(rawSchema)
-	for i, lineTags := range nultilineTags {
+func (t *Schema) Raw2Schema(lineSchema string) {
+	multilineTags := SplitMultilineSchema(lineSchema)
+	for i, lineTags := range multilineTags {
 		if i == 0 && t.IsMetaLine(lineTags) {
 			t.parseMeta(lineTags)
 			continue
@@ -1190,10 +1190,10 @@ func (r *Reflector) typeName(t reflect.Type) string {
 	return t.Name()
 }
 
-func SplitMultilineSchema(rawSchema string) [][]KVpair {
+func SplitMultilineSchema(lineSchema string) [][]KVpair {
 	EOF := "\n"
-	rawSchema = strings.TrimSpace(strings.ReplaceAll(rawSchema, "\r\n", EOF))
-	arr := strings.Split(rawSchema, EOF)
+	lineSchema = strings.TrimSpace(strings.ReplaceAll(lineSchema, "\r\n", EOF))
+	arr := strings.Split(lineSchema, EOF)
 	out := make([][]KVpair, 0)
 	for _, raw := range arr {
 		raw = strings.TrimSpace(raw)
@@ -1207,9 +1207,9 @@ func SplitMultilineSchema(rawSchema string) [][]KVpair {
 	return out
 }
 
-func SplitLineSchema(oneRawSchema string) []KVpair {
-	oneRawSchema = PretreatTag(oneRawSchema)
-	kvStrArr := SplitOnUnescapedCommas(oneRawSchema)
+func SplitLineSchema(onelineSchema string) []KVpair {
+	onelineSchema = PretreatTag(onelineSchema)
+	kvStrArr := SplitOnUnescapedCommas(onelineSchema)
 	out := make([]KVpair, 0)
 	for _, kvStr := range kvStrArr {
 		kvArr := strings.SplitN(kvStr, "=", 2)
