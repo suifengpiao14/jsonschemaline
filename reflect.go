@@ -879,7 +879,7 @@ func (t *Schema) stringKeywords(tags []KVpair) {
 			switch kvPair.Value {
 			case "date-time", "email", "hostname", "ipv4", "ipv6", "uri", "uuid":
 				t.Format = kvPair.Value
-				break
+				//break
 			}
 		case "readOnly":
 			i, _ := strconv.ParseBool(kvPair.Value)

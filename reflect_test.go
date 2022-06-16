@@ -14,11 +14,9 @@ import (
 	"time"
 
 	"github.com/iancoleman/orderedmap"
-
-	"github.com/suifengpiao14/jsonschemaline/examples"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/suifengpiao14/jsonschemaline/examples"
 )
 
 var updateFixtures = flag.Bool("update", false, "set to update fixtures")
@@ -34,20 +32,20 @@ type SomeBaseType struct {
 	// The jsonschema required tag is nonsensical for private and ignored properties.
 	// Their presence here tests that the fields *will not* be required in the output
 	// schema, even if they are tagged required.
-	somePrivateBaseProperty   string          `jsonschema:"required"`
+	SomePrivateBaseProperty   string          `jsonschema:"required"`
 	SomeIgnoredBaseProperty   string          `json:"-" jsonschema:"required"`
 	SomeSchemaIgnoredProperty string          `jsonschema:"-,required"`
 	Grandfather               GrandfatherType `json:"grand"`
 
 	SomeUntaggedBaseProperty           bool `jsonschema:"required"`
-	someUnexportedUntaggedBaseProperty bool
+	SomeUnexportedUntaggedBaseProperty bool
 }
 
 type MapType map[string]interface{}
 
 type nonExported struct {
 	PublicNonExported  int
-	privateNonExported int
+	PrivateNonExported int
 }
 
 type ProtoEnum int32
