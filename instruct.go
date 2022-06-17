@@ -45,7 +45,7 @@ func ParseInstruct(lineschema string) (instructArr Instructs) {
 			src      string
 			dst      string
 			format   string
-			instruct *Instruct
+			instruct Instruct
 		)
 		for _, kvPair := range lineTags {
 			switch kvPair.Key {
@@ -62,7 +62,7 @@ func ParseInstruct(lineschema string) (instructArr Instructs) {
 		if fullname == "" {
 			continue
 		}
-		srcOrDst := strings.ReplaceAll(fullname, "[]", "#")
+		srcOrDst := strings.ReplaceAll(fullname, "[]", ".#")
 		if src == "" {
 			instruct.Name = INSTRUCT_COPY_2_JSON
 			src = srcOrDst
@@ -82,7 +82,7 @@ func ParseInstruct(lineschema string) (instructArr Instructs) {
 			value = fmt.Sprintf(`{{getSetValue . "%s" "%s"}}`, dst, src)
 		}
 		instruct.Value = value
-		instructArr = append(instructArr, instruct)
+		instructArr = append(instructArr, &instruct)
 	}
 	return instructArr
 }
