@@ -77,7 +77,7 @@ func ParseInstruct(lineschema string) (instructArr Instructs) {
 		var value string
 		switch format {
 		case "number", "int", "integer", "float":
-			value = fmt.Sprintf(`{{getSetValueNumber . "%s" "%s"}}`, dst, src)
+			value = fmt.Sprintf(`{{getSetNumber . "%s" "%s"}}`, dst, src)
 		default:
 			value = fmt.Sprintf(`{{getSetValue . "%s" "%s"}}`, dst, src)
 		}
