@@ -11,8 +11,10 @@ const (
 )
 
 type Instruct struct {
-	Name  string
-	Value string
+	Name string
+	Cmd  string
+	Src  string
+	Dst  string
 }
 
 type Instructs []*Instruct
@@ -27,10 +29,19 @@ func (instructs Instructs) GetByName(name string) Instructs {
 	return out
 }
 
-func (instructs Instructs) String() string {
+func (instructs Instructs) String(root string) string {
 	valueArr := make([]string, 0)
 	for _, instruct := range instructs {
-		valueArr = append(valueArr, instruct.Value)
+		dst := instruct.Dst
+		src := instruct.Src
+		if instruct.Name == INSTRUCT_COPY_2_CONTEXT {
+			src = fmt.Sprintf("%s.%s", root, src)
+		}
+		if instruct.Name == INSTRUCT_COPY_2_JSON {
+			dst = fmt.Sprintf("%s.%s", root, dst)
+		}
+		value := fmt.Sprintf(`{{%s . "%s" %s""}}`, instruct.Cmd, dst, src)
+		valueArr = append(valueArr, value)
 	}
 	out := strings.Join(valueArr, "\n")
 	return out
@@ -74,14 +85,14 @@ func ParseInstruct(lineschema string) (instructArr Instructs) {
 		if src == dst {
 			continue
 		}
-		var value string
 		switch format {
 		case "number", "int", "integer", "float":
-			value = fmt.Sprintf(`{{getSetNumber . "%s" "%s"}}`, dst, src)
+			instruct.Cmd = "getSetNumber"
 		default:
-			value = fmt.Sprintf(`{{getSetValue . "%s" "%s"}}`, dst, src)
+			instruct.Cmd = "getSetValue"
 		}
-		instruct.Value = value
+		instruct.Src = src
+		instruct.Dst = dst
 		instructArr = append(instructArr, &instruct)
 	}
 	return instructArr

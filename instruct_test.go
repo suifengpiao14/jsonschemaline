@@ -26,9 +26,9 @@ var schemalineIn = `
 
 func TestParseInstructOut(t *testing.T) {
 	instructs := jsonschemaline.ParseInstruct(schemalineOut)
-	fmt.Println(instructs.String())
+	fmt.Println(instructs.String(""))
 }
 func TestParseInstructIn(t *testing.T) {
 	instructs := jsonschemaline.ParseInstruct(schemalineIn)
-	fmt.Println(instructs.String())
+	fmt.Println(instructs.String(""))
 }
