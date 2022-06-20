@@ -11,10 +11,11 @@ const (
 )
 
 type Instruct struct {
-	Name string
-	Cmd  string
-	Src  string
-	Dst  string
+	Name  string
+	Cmd   string
+	Src   string
+	Dst   string
+	IsTpl bool
 }
 
 type Instructs []*Instruct
@@ -40,7 +41,16 @@ func (instructs Instructs) String(root string) string {
 		if instruct.Name == INSTRUCT_COPY_2_JSON {
 			dst = fmt.Sprintf("%s.%s", root, dst)
 		}
-		value := fmt.Sprintf(`{{%s . "%s" %s""}}`, instruct.Cmd, dst, src)
+		var value string
+		if instruct.IsTpl {
+			if instruct.Src != "" {
+				value = instruct.Src
+			} else if instruct.Dst != "" {
+				value = instruct.Dst
+			}
+		} else {
+			value = fmt.Sprintf(`{{%s . "%s" %s""}}`, instruct.Cmd, dst, src)
+		}
 		valueArr = append(valueArr, value)
 	}
 	out := strings.Join(valueArr, "\n")
@@ -75,24 +85,33 @@ func ParseInstruct(lineschema string) (instructArr Instructs) {
 		}
 		srcOrDst := strings.ReplaceAll(fullname, "[]", ".#")
 		if src == "" {
-			instruct.Name = INSTRUCT_COPY_2_JSON
+			instruct.Name = INSTRUCT_COPY_2_CONTEXT
 			src = srcOrDst
 		}
 		if dst == "" {
-			instruct.Name = INSTRUCT_COPY_2_CONTEXT
+			instruct.Name = INSTRUCT_COPY_2_JSON // dst 为空，则说明fullname 充当目标地址，说明src不为空，即复制到json
 			dst = srcOrDst
 		}
 		if src == dst {
 			continue
 		}
-		switch format {
-		case "number", "int", "integer", "float":
-			instruct.Cmd = "getSetNumber"
-		default:
-			instruct.Cmd = "getSetValue"
-		}
 		instruct.Src = src
 		instruct.Dst = dst
+		if len(instruct.Src) > 2 && instruct.Src[:2] == "{{" {
+			instruct.IsTpl = true
+		}
+		if len(instruct.Dst) > 2 && instruct.Dst[:2] == "{{" {
+			instruct.IsTpl = true
+		}
+
+		if !instruct.IsTpl { // 本身不是tpl的情况下，构造tpl
+			switch format {
+			case "number", "int", "integer", "float":
+				instruct.Cmd = "getSetNumber"
+			default:
+				instruct.Cmd = "getSetValue"
+			}
+		}
 		instructArr = append(instructArr, &instruct)
 	}
 	return instructArr
