@@ -22,6 +22,8 @@ import (
 	"github.com/iancoleman/orderedmap"
 )
 
+const EOF = "\n"
+const EOF_DOUBLE = "\n\n" //double
 // Version is the JSON Schema version.
 var Version = "http://json-schema.org/draft/2020-12/schema"
 
@@ -103,6 +105,11 @@ type Schema struct {
 	PropertyName string `json:"-"`
 }
 
+type Meta struct {
+	ID      ID     `json:"id"`
+	Version string `json:"version"`
+}
+
 var (
 	// TrueSchema defines a schema with a true value
 	TrueSchema = &Schema{boolean: &[]bool{true}[0]}
@@ -114,6 +121,8 @@ type KVpair struct {
 	Key   string
 	Value string
 }
+
+type TagLineKVpair []KVpair
 
 // customSchemaImpl is used to detect if the type provides it's own
 // custom Schema Type definition to use instead. Very useful for situations
@@ -642,8 +651,10 @@ func (t *Schema) structKeywordsFromTags(f reflect.StructField, parent *Schema, p
 func (t *Schema) Raw2Schema(lineSchema string) {
 	multilineTags := SplitMultilineSchema(lineSchema)
 	for i, lineTags := range multilineTags {
-		if i == 0 && t.IsMetaLine(lineTags) {
-			t.parseMeta(lineTags)
+		if i == 0 && IsMetaLine(lineTags) {
+			meta := ParseMeta(lineTags)
+			t.ID = meta.ID
+			t.Version = meta.Version
 			continue
 		}
 		fullname := t.getFullname(lineTags)
@@ -653,38 +664,51 @@ func (t *Schema) Raw2Schema(lineSchema string) {
 	}
 }
 
-func (t *Schema) IsMetaLine(lineTags []KVpair) bool {
-	hasFullname, hasVersion := false, false
+func IsMetaLine(lineTags TagLineKVpair) bool {
+	hasFullname, hasId := false, false
 	for _, kvPair := range lineTags {
 		switch kvPair.Key {
-		case "version":
-			hasVersion = true
+		case "id":
+			hasId = true
 		case "fullname":
 			hasFullname = true
 		}
 	}
-	is := hasVersion && !hasFullname
+	is := hasId && !hasFullname
 	return is
 }
 
-func (t *Schema) parseMeta(metaLineTags []KVpair) {
-	for _, kvArr := range metaLineTags {
-		switch kvArr.Key {
-		case "version":
-			t.Version = kvArr.Value
-		case "id":
-			t.ID = ID(kvArr.Value)
+func GetMetaLine(tagLineKVpairs []TagLineKVpair) (tagLineKVpair *TagLineKVpair, ok bool) {
+	tagLineKVpair = &TagLineKVpair{}
+	for _, tagLineKVpair := range tagLineKVpairs {
+		ok = IsMetaLine(tagLineKVpair)
+		if ok {
+			return &tagLineKVpair, true
 		}
 	}
+	return nil, false
+}
+
+func ParseMeta(metaLineTags []KVpair) (meta Meta) {
+	meta = Meta{}
+	for _, kvPair := range metaLineTags {
+		switch kvPair.Key {
+		case "version":
+			meta.Version = kvPair.Value
+		case "id":
+			meta.ID = ID(kvPair.Value)
+		}
+	}
+	return meta
 }
 
 func (t *Schema) getFullname(lineTags []KVpair) (fullname string) {
 	kvPairArr := make([]string, 0)
-	for _, kvArr := range lineTags {
-		if kvArr.Key == "fullname" {
-			return kvArr.Value
+	for _, kvPair := range lineTags {
+		if kvPair.Key == "fullname" {
+			return kvPair.Value
 		}
-		kvPairArr = append(kvPairArr, fmt.Sprintf("%s=%s", kvArr.Key, kvArr.Value))
+		kvPairArr = append(kvPairArr, fmt.Sprintf("%s=%s", kvPair.Key, kvPair.Value))
 	}
 	err := errors.Errorf("fullname required,got tag:%#v", strings.Join(kvPairArr, ","))
 	panic(err)
@@ -1190,11 +1214,10 @@ func (r *Reflector) typeName(t reflect.Type) string {
 	return t.Name()
 }
 
-func SplitMultilineSchema(lineSchema string) [][]KVpair {
-	EOF := "\n"
+func SplitMultilineSchema(lineSchema string) []TagLineKVpair {
 	lineSchema = strings.TrimSpace(strings.ReplaceAll(lineSchema, "\r\n", EOF))
 	arr := strings.Split(lineSchema, EOF)
-	out := make([][]KVpair, 0)
+	out := make([]TagLineKVpair, 0)
 	for _, raw := range arr {
 		raw = strings.TrimSpace(raw)
 		if raw == "" {
@@ -1202,7 +1225,6 @@ func SplitMultilineSchema(lineSchema string) [][]KVpair {
 		}
 		oneRaw := SplitLineSchema(raw)
 		out = append(out, oneRaw)
-
 	}
 	return out
 }
@@ -1212,9 +1234,9 @@ func SplitLineSchema(onelineSchema string) []KVpair {
 	kvStrArr := SplitOnUnescapedCommas(onelineSchema)
 	out := make([]KVpair, 0)
 	for _, kvStr := range kvStrArr {
-		kvArr := strings.SplitN(kvStr, "=", 2)
-		if len(kvArr) == 2 {
-			k, v := strings.TrimSpace(kvArr[0]), strings.TrimSpace(kvArr[1])
+		kvPair := strings.SplitN(kvStr, "=", 2)
+		if len(kvPair) == 2 {
+			k, v := strings.TrimSpace(kvPair[0]), strings.TrimSpace(kvPair[1])
 			out = append(out, KVpair{k, v})
 		}
 	}
@@ -1242,11 +1264,11 @@ func PretreatTag(tag string) (formatTag string) {
 	tmpArr := make([]string, 0)
 	for _, kvStr := range kvStrArr {
 		kvStr = strings.TrimSpace(kvStr)
-		kvArr := strings.SplitN(kvStr, "=", 2)
-		if len(kvArr) == 1 {
-			kvArr = append(kvArr, "")
+		kvPair := strings.SplitN(kvStr, "=", 2)
+		if len(kvPair) == 1 {
+			kvPair = append(kvPair, "")
 		}
-		k, v := strings.TrimSpace(kvArr[0]), strings.TrimSpace(kvArr[1])
+		k, v := strings.TrimSpace(kvPair[0]), strings.TrimSpace(kvPair[1])
 		hasType = hasType || k == "type"
 		tmpArr = append(tmpArr, fmt.Sprintf("%s=%s", k, v))
 	}
