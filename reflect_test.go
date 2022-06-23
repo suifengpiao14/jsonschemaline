@@ -534,7 +534,7 @@ func TestParseRaw2(t *testing.T) {
 
 func TestPretreatTag(t *testing.T) {
 	str := `fullname=config.type,dst=FopenIDType,enum=["1","2"],required`
-	out := PretreatTag(str)
+	out := PretreatJsonschemalineRaw(str)
 	fmt.Println(out)
 
 }

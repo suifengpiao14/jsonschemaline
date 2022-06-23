@@ -13,7 +13,6 @@ import (
 	"net"
 	"net/url"
 	"reflect"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -105,24 +104,12 @@ type Schema struct {
 	PropertyName string `json:"-"`
 }
 
-type Meta struct {
-	ID      ID     `json:"id"`
-	Version string `json:"version"`
-}
-
 var (
 	// TrueSchema defines a schema with a true value
 	TrueSchema = &Schema{boolean: &[]bool{true}[0]}
 	// FalseSchema defines a schema with a false value
 	FalseSchema = &Schema{boolean: &[]bool{false}[0]}
 )
-
-type KVpair struct {
-	Key   string
-	Value string
-}
-
-type TagLineKVpair []KVpair
 
 // customSchemaImpl is used to detect if the type provides it's own
 // custom Schema Type definition to use instead. Very useful for situations
@@ -664,20 +651,6 @@ func (t *Schema) Raw2Schema(lineSchema string) {
 	}
 }
 
-func IsMetaLine(lineTags TagLineKVpair) bool {
-	hasFullname, hasId := false, false
-	for _, kvPair := range lineTags {
-		switch kvPair.Key {
-		case "id":
-			hasId = true
-		case "fullname":
-			hasFullname = true
-		}
-	}
-	is := hasId && !hasFullname
-	return is
-}
-
 func GetMetaLine(tagLineKVpairs []TagLineKVpair) (tagLineKVpair *TagLineKVpair, ok bool) {
 	tagLineKVpair = &TagLineKVpair{}
 	for _, tagLineKVpair := range tagLineKVpairs {
@@ -689,6 +662,19 @@ func GetMetaLine(tagLineKVpairs []TagLineKVpair) (tagLineKVpair *TagLineKVpair, 
 	return nil, false
 }
 
+func SplitLineSchema(onelineSchema string) []KVpair {
+	onelineSchema = PretreatJsonschemalineRaw(onelineSchema)
+	kvStrArr := SplitOnUnescapedCommas(onelineSchema)
+	out := make([]KVpair, 0)
+	for _, kvStr := range kvStrArr {
+		kvPair := strings.SplitN(kvStr, "=", 2)
+		if len(kvPair) == 2 {
+			k, v := strings.TrimSpace(kvPair[0]), strings.TrimSpace(kvPair[1])
+			out = append(out, KVpair{k, v})
+		}
+	}
+	return out
+}
 func ParseMeta(metaLineTags []KVpair) (meta Meta) {
 	meta = Meta{}
 	for _, kvPair := range metaLineTags {
@@ -1227,56 +1213,6 @@ func SplitMultilineSchema(lineSchema string) []TagLineKVpair {
 		out = append(out, oneRaw)
 	}
 	return out
-}
-
-func SplitLineSchema(onelineSchema string) []KVpair {
-	onelineSchema = PretreatTag(onelineSchema)
-	kvStrArr := SplitOnUnescapedCommas(onelineSchema)
-	out := make([]KVpair, 0)
-	for _, kvStr := range kvStrArr {
-		kvPair := strings.SplitN(kvStr, "=", 2)
-		if len(kvPair) == 2 {
-			k, v := strings.TrimSpace(kvPair[0]), strings.TrimSpace(kvPair[1])
-			out = append(out, KVpair{k, v})
-		}
-	}
-	return out
-}
-
-//PretreatTag 处理enum []格式
-func PretreatTag(tag string) (formatTag string) {
-	preg := "enum=\\[(.*)\\],"
-	formatTag = strings.Trim(tag, ",")
-	reg := regexp.MustCompile(preg)
-	matchArr := reg.FindAllStringSubmatch(tag, -1)
-	if len(matchArr) > 0 {
-		replaceStr := "enum="
-		for _, matchRaw := range matchArr {
-			raw := strings.ReplaceAll(matchRaw[1], `"`, "")
-			valArr := strings.Split(raw, ",")
-			replaceStr = fmt.Sprintf("enum=%s,", strings.Join(valArr, ",enum="))
-			formatTag = strings.ReplaceAll(formatTag, matchRaw[0], replaceStr)
-		}
-	}
-
-	hasType := false
-	kvStrArr := strings.Split(formatTag, ",")
-	tmpArr := make([]string, 0)
-	for _, kvStr := range kvStrArr {
-		kvStr = strings.TrimSpace(kvStr)
-		kvPair := strings.SplitN(kvStr, "=", 2)
-		if len(kvPair) == 1 {
-			kvPair = append(kvPair, "")
-		}
-		k, v := strings.TrimSpace(kvPair[0]), strings.TrimSpace(kvPair[1])
-		hasType = hasType || k == "type"
-		tmpArr = append(tmpArr, fmt.Sprintf("%s=%s", k, v))
-	}
-	if !hasType {
-		tmpArr = append(tmpArr, "type=string") // 增加默认type=string
-	}
-	formatTag = strings.Join(tmpArr, ",")
-	return formatTag
 }
 
 // Split on commas that are not preceded by `\`.
