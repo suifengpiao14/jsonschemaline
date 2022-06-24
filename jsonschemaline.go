@@ -5,42 +5,44 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+
+	"github.com/go-errors/errors"
 )
 
 type JsonschemalineItem struct {
-	Comments string `json:"$comment,omitempty"` // section 8.3
+	Comments string `json:"comment,omitempty"` // section 8.3
 
-	Type             string        `json:"type,omitempty"`             // section 6.1.1
-	Enum             []interface{} `json:"enum,omitempty"`             // section 6.1.2
-	Const            interface{}   `json:"const,omitempty"`            // section 6.1.3
-	MultipleOf       int           `json:"multipleOf,omitempty"`       // section 6.2.1
-	Maximum          int           `json:"maximum,omitempty"`          // section 6.2.2
-	ExclusiveMaximum bool          `json:"exclusiveMaximum,omitempty"` // section 6.2.3
-	Minimum          int           `json:"minimum,omitempty"`          // section 6.2.4
-	ExclusiveMinimum bool          `json:"exclusiveMinimum,omitempty"` // section 6.2.5
-	MaxLength        int           `json:"maxLength,omitempty"`        // section 6.3.1
-	MinLength        int           `json:"minLength,omitempty"`        // section 6.3.2
-	Pattern          string        `json:"pattern,omitempty"`          // section 6.3.3
-	MaxItems         int           `json:"maxItems,omitempty"`         // section 6.4.1
-	MinItems         int           `json:"minItems,omitempty"`         // section 6.4.2
-	UniqueItems      bool          `json:"uniqueItems,omitempty"`      // section 6.4.3
-	MaxContains      uint          `json:"maxContains,omitempty"`      // section 6.4.4
-	MinContains      uint          `json:"minContains,omitempty"`      // section 6.4.5
-	MaxProperties    int           `json:"maxProperties,omitempty"`    // section 6.5.1
-	MinProperties    int           `json:"minProperties,omitempty"`    // section 6.5.2
-	Required         bool          `json:"required,omitempty"`         // section 6.5.3
+	Type             string        `json:"type,omitempty"`                    // section 6.1.1
+	Enum             []interface{} `json:"enum,omitempty"`                    // section 6.1.2
+	Const            interface{}   `json:"const,omitempty"`                   // section 6.1.3
+	MultipleOf       int           `json:"multipleOf,omitempty,string"`       // section 6.2.1
+	Maximum          int           `json:"maximum,omitempty,string"`          // section 6.2.2
+	ExclusiveMaximum bool          `json:"exclusiveMaximum,omitempty,string"` // section 6.2.3
+	Minimum          int           `json:"minimum,omitempty,string"`          // section 6.2.4
+	ExclusiveMinimum bool          `json:"exclusiveMinimum,omitempty,string"` // section 6.2.5
+	MaxLength        int           `json:"maxLength,omitempty,string"`        // section 6.3.1
+	MinLength        int           `json:"minLength,omitempty,string"`        // section 6.3.2
+	Pattern          string        `json:"pattern,omitempty"`                 // section 6.3.3
+	MaxItems         int           `json:"maxItems,omitempty,string"`         // section 6.4.1
+	MinItems         int           `json:"minItems,omitempty,string"`         // section 6.4.2
+	UniqueItems      bool          `json:"uniqueItems,omitempty,string"`      // section 6.4.3
+	MaxContains      uint          `json:"maxContains,omitempty,string"`      // section 6.4.4
+	MinContains      uint          `json:"minContains,omitempty,string"`      // section 6.4.5
+	MaxProperties    int           `json:"maxProperties,omitempty,string"`    // section 6.5.1
+	MinProperties    int           `json:"minProperties,omitempty,string"`    // section 6.5.2
+	Required         bool          `json:"required,omitempty,string"`         // section 6.5.3
 	// RFC draft-bhutton-json-schema-validation-00, section 7
 	Format string `json:"format,omitempty"`
 	// RFC draft-bhutton-json-schema-validation-00, section 8
-	ContentEncoding  string `json:"contentEncoding,omitempty"`  // section 8.3
-	ContentMediaType string `json:"contentMediaType,omitempty"` // section 8.4
-	Title            string `json:"title,omitempty"`            // section 9.1
-	Description      string `json:"description,omitempty"`      // section 9.1
-	Default          string `json:"default,omitempty"`          // section 9.2
-	Deprecated       bool   `json:"deprecated,omitempty"`       // section 9.3
-	ReadOnly         bool   `json:"readOnly,omitempty"`         // section 9.4
-	WriteOnly        bool   `json:"writeOnly,omitempty"`        // section 9.4
-	Example          string `json:"examples,omitempty"`         // section 9.5
+	ContentEncoding  string `json:"contentEncoding,omitempty"`   // section 8.3
+	ContentMediaType string `json:"contentMediaType,omitempty"`  // section 8.4
+	Title            string `json:"title,omitempty"`             // section 9.1
+	Description      string `json:"description,omitempty"`       // section 9.1
+	Default          string `json:"default,omitempty"`           // section 9.2
+	Deprecated       bool   `json:"deprecated,omitempty,string"` // section 9.3
+	ReadOnly         bool   `json:"readOnly,omitempty,string"`   // section 9.4
+	WriteOnly        bool   `json:"writeOnly,omitempty,string"`  // section 9.4
+	Example          string `json:"examples,omitempty,string"`   // section 9.5
 	Src              string `json:"src,omitempty"`
 	Dst              string `json:"dst,omitempty"`
 	Fullname         string `json:"fullname"`
@@ -108,6 +110,10 @@ func ParseJsonschemaline(jsonschemalineBlock string) (jsonschemaline *Jsonschema
 			jsonschemaline.Items = append(jsonschemaline.Items, item)
 		}
 	}
+	if jsonschemaline.Meta == nil {
+		err := errors.Errorf("jsonschemaline ID required,got:%s", jsonschemalineBlock)
+		return nil, err
+	}
 	return jsonschemaline, nil
 }
 
@@ -169,7 +175,7 @@ func PretreatJsonschemalineRaw(tag string) (formatTag string) {
 		kvStr = strings.TrimSpace(kvStr)
 		kvPair := strings.SplitN(kvStr, "=", 2)
 		if len(kvPair) == 1 {
-			kvPair = append(kvPair, "")
+			kvPair = append(kvPair, "true") // bool 类型为true时，可以简写只有key
 		}
 		k, v := strings.TrimSpace(kvPair[0]), strings.TrimSpace(kvPair[1])
 		hasType = hasType || k == "type"

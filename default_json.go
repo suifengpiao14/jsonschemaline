@@ -1,9 +1,10 @@
 package jsonschemaline
 
 import (
+	"fmt"
 	"strings"
 
-	"github.com/go-errors/errors"
+	"github.com/tidwall/sjson"
 )
 
 type DefaultJson struct {
@@ -12,58 +13,44 @@ type DefaultJson struct {
 	Json    string
 }
 
-func ParseDefaultJson(linechemas string) (defaultJsons []*DefaultJson) {
+func ParseDefaultJson(linechemas string) (defaultJsons []*DefaultJson, err error) {
 	linechemas = strings.TrimSpace(strings.ReplaceAll(linechemas, "\r\n", EOF))
 	arr := strings.Split(linechemas, EOF_DOUBLE)
 	defaultJsons = make([]*DefaultJson, 0)
 	for _, lineschema := range arr {
-		defaultJson := ParseOneDefaultJson(lineschema)
+		defaultJson, err := ParseOneDefaultJson(lineschema)
+		if err != nil {
+			return nil, err
+		}
 		defaultJsons = append(defaultJsons, defaultJson)
 	}
-	return defaultJsons
+	return defaultJsons, nil
 }
 
-func ParseOneDefaultJson(lineschema string) (defaultJson *DefaultJson) {
+func ParseOneDefaultJson(lineschema string) (defaultJson *DefaultJson, err error) {
 	defaultJson = new(DefaultJson)
-	tagLineKVpairs := SplitMultilineSchema(lineschema)
-	metaline, ok := GetMetaLine(tagLineKVpairs)
-	if !ok {
-		err := errors.Errorf("ParseOneDefaultJson meta line required,got: %#v", lineschema)
-		panic(err)
+	jsonschemaline, err := ParseJsonschemaline(lineschema)
+	if err != nil {
+		return nil, err
 	}
-	meta := ParseMeta(*metaline)
-	defaultJson.ID = meta.ID.String()
-	defaultJson.Version = meta.Version
-	fullnameList := make([]string, 0)
-	for _, lineTags := range tagLineKVpairs {
-		var (
-			fullname     string
-			src          string
-			dst          string
-			format       string
-			defaultValue string
-			required     bool
-		)
-		for _, kvPair := range lineTags {
-			switch kvPair.Key {
-			case "fullname":
-				fullname = kvPair.Value
-				fullnameList = append(fullnameList, fullname)
-			case "src":
-				src = kvPair.Value
-			case "dst":
-				dst = kvPair.Value
-			case "format":
-				format = kvPair.Value
-			case "required":
-				required = true
-			case "default":
-				defaultValue = kvPair.Value
-			}
-		}
-		if fullname == "" {
-			continue
+	id := jsonschemaline.Meta.ID.String()
+	defaultJson.ID = id
+	defaultJson.Version = jsonschemaline.Meta.Version
+	kvmap := make(map[string]string)
+	for _, item := range jsonschemaline.Items {
+		if item.Default != "" {
+			path := strings.ReplaceAll(item.Fullname, "[]", ".#")
+			k := fmt.Sprintf("%s.%s", id, path)
+			kvmap[k] = item.Default
 		}
 	}
-	return defaultJson
+	jsonContent := ""
+	for k, v := range kvmap {
+		jsonContent, err = sjson.Set(jsonContent, k, v)
+		if err != nil {
+			return nil, err
+		}
+	}
+	defaultJson.Json = jsonContent
+	return defaultJson, nil
 }
