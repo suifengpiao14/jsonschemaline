@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/go-errors/errors"
+	"github.com/pkg/errors"
 )
 
 type JsonschemalineItem struct {

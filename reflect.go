@@ -17,8 +17,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-errors/errors"
 	"github.com/iancoleman/orderedmap"
+	"github.com/pkg/errors"
 )
 
 const EOF = "\n"

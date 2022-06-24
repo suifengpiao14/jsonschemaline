@@ -23,3 +23,14 @@ func TestParseDefaultJson(t *testing.T) {
 		fmt.Printf("%#v", defaultJson)
 	}
 }
+
+func TestJsonMerge(t *testing.T) {
+	defaultJson := `{"pageSize":"20","remark":"hello world"}`
+	specialJson := `{"pageIndex":"0","pageSize":"10"}`
+
+	merge, err := jsonschemaline.JsonMerge(defaultJson, specialJson)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(merge)
+}

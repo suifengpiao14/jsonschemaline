@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	jsonpatch "github.com/evanphx/json-patch/v5"
+	"github.com/pkg/errors"
 	"github.com/tidwall/sjson"
 )
 
@@ -53,4 +55,23 @@ func ParseOneDefaultJson(lineschema string) (defaultJson *DefaultJson, err error
 	}
 	defaultJson.Json = jsonContent
 	return defaultJson, nil
+}
+
+func JsonMerge(first string, second string, more ...string) (merge string, err error) {
+	combinedPatch := []byte(second)
+	for _, patch := range more {
+		combinedPatch, err = jsonpatch.MergeMergePatches(combinedPatch, []byte(patch))
+		if err != nil {
+			err = errors.WithStack(err)
+			return "", err
+		}
+
+	}
+	mb, err := jsonpatch.MergePatch([]byte(first), combinedPatch)
+	if err != nil {
+		err = errors.WithStack(err)
+		return "", err
+	}
+	merge = string(mb)
+	return merge, err
 }

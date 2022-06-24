@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/go-errors/errors"
+	"github.com/pkg/errors"
 )
 
 const (
