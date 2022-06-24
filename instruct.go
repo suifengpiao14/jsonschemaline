@@ -52,10 +52,9 @@ type InstructTpl struct {
 type InstructTpls []*InstructTpl
 
 func (instructTpls InstructTpls) GetByID(id string) *InstructTpl {
-	out := new(InstructTpl)
 	for _, instruct := range instructTpls {
 		if instruct.ID == ID(id) {
-			out = instruct
+			out := instruct
 			return out
 		}
 	}
