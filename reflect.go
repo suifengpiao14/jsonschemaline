@@ -9,7 +9,6 @@ package jsonschemaline
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"net"
 	"net/url"
 	"reflect"
@@ -680,17 +679,6 @@ func ParseMeta(metaLineTags []KVpair) (meta Meta) {
 	return meta
 }
 
-func (t *Schema) getFullname(lineTags []KVpair) (fullname string) {
-	kvPairArr := make([]string, 0)
-	for _, kvPair := range lineTags {
-		if kvPair.Key == "fullname" {
-			return kvPair.Value
-		}
-		kvPairArr = append(kvPairArr, fmt.Sprintf("%s=%s", kvPair.Key, kvPair.Value))
-	}
-	err := errors.Errorf("fullname required,got tag:%#v", strings.Join(kvPairArr, ","))
-	panic(err)
-}
 func (t *Schema) parseFullname(fullname string) (parent *Schema, propertyName string) {
 	lastIndex := strings.LastIndex(fullname, ".")
 	if lastIndex < 0 {
