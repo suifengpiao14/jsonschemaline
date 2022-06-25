@@ -34,22 +34,41 @@ type JsonschemalineItem struct {
 	// RFC draft-bhutton-json-schema-validation-00, section 7
 	Format string `json:"format,omitempty"`
 	// RFC draft-bhutton-json-schema-validation-00, section 8
-	ContentEncoding  string `json:"contentEncoding,omitempty"`   // section 8.3
-	ContentMediaType string `json:"contentMediaType,omitempty"`  // section 8.4
-	Title            string `json:"title,omitempty"`             // section 9.1
-	Description      string `json:"description,omitempty"`       // section 9.1
-	Default          string `json:"default,omitempty"`           // section 9.2
-	Deprecated       bool   `json:"deprecated,omitempty,string"` // section 9.3
-	ReadOnly         bool   `json:"readOnly,omitempty,string"`   // section 9.4
-	WriteOnly        bool   `json:"writeOnly,omitempty,string"`  // section 9.4
-	Example          string `json:"examples,omitempty,string"`   // section 9.5
-	Src              string `json:"src,omitempty"`
-	Dst              string `json:"dst,omitempty"`
-	Fullname         string `json:"fullname"`
+	ContentEncoding  string        `json:"contentEncoding,omitempty"`   // section 8.3
+	ContentMediaType string        `json:"contentMediaType,omitempty"`  // section 8.4
+	Title            string        `json:"title,omitempty"`             // section 9.1
+	Description      string        `json:"description,omitempty"`       // section 9.1
+	Default          string        `json:"default,omitempty"`           // section 9.2
+	Deprecated       bool          `json:"deprecated,omitempty,string"` // section 9.3
+	ReadOnly         bool          `json:"readOnly,omitempty,string"`   // section 9.4
+	WriteOnly        bool          `json:"writeOnly,omitempty,string"`  // section 9.4
+	Example          string        `json:"example,omitempty,string"`    // section 9.5
+	Src              string        `json:"src,omitempty"`
+	Dst              string        `json:"dst,omitempty"`
+	Fullname         string        `json:"fullname"`
+	TagLineKVpair    TagLineKVpair `json:"-"`
 }
+
+var jsonschemalineItemOrder = []string{
+	"fullname", "src", "dst", "type", "format", "pattern", "required", "title", "description", "default", "comment", "enum", "example", "deprecated", "const",
+	"multipleOf", "maximum", "exclusiveMaximum", "minimum", "exclusiveMinimum", "maxLength", "minLength",
+	"maxItems",
+	"minItems",
+	"uniqueItems",
+	"maxContains",
+	"minContains",
+	"maxProperties",
+	"minProperties",
+	"contentEncoding",
+	"contentMediaType",
+	"readOnly",
+	"writeOnly",
+}
+
 type Meta struct {
 	ID      ID     `json:"id"`
 	Version string `json:"version"`
+	Type    string
 }
 
 func IsMetaLine(lineTags TagLineKVpair) bool {
@@ -69,6 +88,50 @@ func IsMetaLine(lineTags TagLineKVpair) bool {
 type Jsonschemaline struct {
 	Meta  *Meta
 	Items []*JsonschemalineItem
+}
+
+func (l *Jsonschemaline) String() string {
+
+	lineArr := make([]string, 0)
+	lineArr = append(lineArr, fmt.Sprintf("id=%s,version=%s", l.Meta.ID, l.Meta.Version))
+	var linemap []map[string]string
+	b, err := json.Marshal(l.Items)
+	if err != nil {
+		err = errors.WithStack(err)
+		panic(err)
+	}
+	err = json.Unmarshal(b, &linemap)
+	if err != nil {
+		err = errors.WithStack(err)
+		panic(err)
+	}
+
+	for _, m := range linemap {
+		kvArr := make([]string, 0)
+		for _, k := range jsonschemalineItemOrder {
+			if l.Meta.Type == INSTRUCT_TYPE_IN && k == "src" {
+				continue
+			}
+			if l.Meta.Type == INSTRUCT_TYPE_OUT && k == "dst" {
+				continue
+			}
+			v, ok := m[k]
+			if ok {
+				if k == "type" && v == "string" {
+					continue // 字符串类型,默认不写
+				}
+				if v == "true" {
+					kvArr = append(kvArr, k)
+				} else {
+					kvArr = append(kvArr, fmt.Sprintf("%s=%s", k, v))
+				}
+			}
+		}
+		line := strings.Join(kvArr, ",")
+		lineArr = append(lineArr, line)
+	}
+	out := strings.Join(lineArr, EOF)
+	return out
 }
 
 type KVpair struct {
@@ -114,19 +177,33 @@ func ParseJsonschemaline(jsonschemalineBlock string) (jsonschemaline *Jsonschema
 		err := errors.Errorf("jsonschemaline ID required,got:%s", jsonschemalineBlock)
 		return nil, err
 	}
+	for _, item := range jsonschemaline.Items {
+		str := strings.ReplaceAll(item.Fullname, "[]", ".#")
+		srcOrDst := fmt.Sprintf("%s.%s", jsonschemaline.Meta.ID, str)
+		if item.Src == "" {
+			item.Src = srcOrDst
+			jsonschemaline.Meta.Type = INSTRUCT_TYPE_IN
+		}
+		if item.Dst == "" {
+			item.Dst = srcOrDst
+			jsonschemaline.Meta.Type = INSTRUCT_TYPE_OUT
+		}
+	}
 	return jsonschemaline, nil
 }
 
 // ParseJsonschemalineRaw 解析 jsonschemaline 一行数据
-func ParseJsonschemalineRaw(jsonschemalineRaw string) (meta *Meta, jsonschemalineItem *JsonschemalineItem, err error) {
+func ParseJsonschemalineRaw(jsonschemalineRaw string) (meta *Meta, item *JsonschemalineItem, err error) {
 	jsonschemalineRaw = PretreatJsonschemalineRaw(jsonschemalineRaw)
 	kvStrArr := SplitOnUnescapedCommas(jsonschemalineRaw)
 	kvMap := make(map[string]string)
+	tagLineKVPair := make(TagLineKVpair, 0)
 	for _, kvStr := range kvStrArr {
 		kvPair := strings.SplitN(kvStr, "=", 2)
 		if len(kvPair) == 2 {
 			k, v := strings.TrimSpace(kvPair[0]), strings.TrimSpace(kvPair[1])
 			kvMap[k] = v
+			tagLineKVPair = append(tagLineKVPair, KVpair{Key: k, Value: v})
 		}
 	}
 	_, hasId := kvMap["id"]
@@ -143,13 +220,14 @@ func ParseJsonschemalineRaw(jsonschemalineRaw string) (meta *Meta, jsonschemalin
 		}
 		return meta, nil, nil
 	}
-	jsonschemalineItem = new(JsonschemalineItem)
-	err = json.Unmarshal(jb, jsonschemalineItem)
+	item = new(JsonschemalineItem)
+	err = json.Unmarshal(jb, item)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return nil, jsonschemalineItem, nil
+	item.TagLineKVpair = tagLineKVPair
+	return nil, item, nil
 }
 
 //PretreatJsonschemalineRaw 处理enum []格式

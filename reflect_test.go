@@ -507,8 +507,12 @@ func TestParseRaw(t *testing.T) {
 	fullname=pageInfo.pageSize,src=input.pageSize,required
 	fullname=pageInfo.total,src=PaginateTotalOut,required
  `
+	lineschema, err := ParseJsonschemaline(raw)
+	if err != nil {
+		panic(err)
+	}
 	schema := new(Schema)
-	schema.Raw2Schema(raw)
+	schema.Raw2Schema(*lineschema)
 	b, err := schema.MarshalJSON()
 	if err != nil {
 		panic(err)
@@ -522,8 +526,12 @@ func TestParseRaw2(t *testing.T) {
 	fullname=config.type,dst=FopenIDType,enum=["1","2"],required
 	fullname=config.status,dst=Fstatus,enum=["0","1"],required
  `
+	lineschema, err := ParseJsonschemaline(raw)
+	if err != nil {
+		panic(err)
+	}
 	schema := new(Schema)
-	schema.Raw2Schema(raw)
+	schema.Raw2Schema(*lineschema)
 	b, err := schema.MarshalJSON()
 	if err != nil {
 		panic(err)

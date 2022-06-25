@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-
-	"github.com/pkg/errors"
 )
 
 const (
@@ -67,12 +65,6 @@ func (instructTpl *InstructTpl) String() string {
 	for _, instruct := range instructTpl.Instructs {
 		dst := instruct.Dst
 		src := instruct.Src
-		if instructTpl.Type == INSTRUCT_TYPE_OUT { // 输出时，dst 需要加上 根 元素
-			dst = fmt.Sprintf("%s.%s", instructTpl.ID, dst)
-		}
-		if instructTpl.Type == INSTRUCT_TYPE_IN { // 输入时, src 需要加上 跟 元素
-			src = fmt.Sprintf("%s.%s", instructTpl.ID, src)
-		}
 		var value string
 		if instruct.Tpl != "" {
 			value = instruct.Tpl
@@ -86,68 +78,20 @@ func (instructTpl *InstructTpl) String() string {
 	return out
 }
 
-func ParseInstructTp(lineschemas string) (instructTpls InstructTpls) {
-
-	lineschemas = strings.TrimSpace(strings.ReplaceAll(lineschemas, "\r\n", EOF))
-	arr := strings.Split(lineschemas, EOF_DOUBLE)
-	instructTpls = InstructTpls{}
-	for _, lineschema := range arr {
-		instructTpl := ParseOneInstructTp(lineschema)
-		instructTpls = append(instructTpls, instructTpl)
-	}
-	return instructTpls
-}
-
-func ParseOneInstructTp(lineschema string) (instructTpl *InstructTpl) {
+func ParseInstructTp(lineschema Jsonschemaline) (instructTpl *InstructTpl) {
 	instructTpl = new(InstructTpl)
-	tagLineKVpairs := SplitMultilineSchema(lineschema)
-	metaline, ok := GetMetaLine(tagLineKVpairs)
-	if !ok {
-		err := errors.Errorf("meta line required,got: %#v", lineschema)
-		panic(err)
-	}
-	meta := ParseMeta(*metaline)
-	instructTpl.ID = meta.ID
-	instructTpl.Version = meta.Version
+	instructTpl.ID = lineschema.Meta.ID
+	instructTpl.Version = lineschema.Meta.Version
+	instructTpl.Type = INSTRUCT_TYPE_IN
 	fullnameList := make([]string, 0)
-	for _, lineTags := range tagLineKVpairs {
-		var (
-			fullname string
-			src      string
-			dst      string
-			format   string
-			instruct Instruct
-		)
-		for _, kvPair := range lineTags {
-			switch kvPair.Key {
-			case "fullname":
-				fullname = kvPair.Value
-				fullnameList = append(fullnameList, fullname)
-			case "src":
-				src = kvPair.Value
-			case "dst":
-				dst = kvPair.Value
-			case "format":
-				format = kvPair.Value
-			}
+	for _, item := range lineschema.Items {
+		instruct := Instruct{
+			ID:  item.Fullname,
+			Src: item.Src,
+			Dst: item.Dst,
 		}
-		if fullname == "" {
-			continue
-		}
-		srcOrDst := strings.ReplaceAll(fullname, "[]", ".#")
-		if src == "" {
-			instructTpl.Type = INSTRUCT_TYPE_IN
-			src = srcOrDst
-		}
-		if dst == "" {
-			instructTpl.Type = INSTRUCT_TYPE_OUT // dst 为空，则说明fullname 充当目标地址，说明src不为空，即复制到json
-			dst = srcOrDst
-		}
-		if src == dst {
-			continue
-		}
-		instruct.Src = src
-		instruct.Dst = dst
+		fullnameList = append(fullnameList, item.Fullname)
+
 		if len(instruct.Src) > 2 && instruct.Src[:2] == "{{" {
 			instruct.Tpl = instruct.Src
 		}
@@ -156,7 +100,7 @@ func ParseOneInstructTp(lineschema string) (instructTpl *InstructTpl) {
 		}
 
 		if instruct.Tpl == "" { // 本身不是tpl的情况下，构造tpl
-			switch format {
+			switch item.Format {
 			case "number", "int", "integer", "float":
 				instruct.Cmd = "getSetNumber"
 			default:

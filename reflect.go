@@ -635,19 +635,11 @@ func (t *Schema) structKeywordsFromTags(f reflect.StructField, parent *Schema, p
 	extras := SplitLineSchema(f.Tag.Get("jsonschema_extras"))
 	t.extraKeywords(extras)
 }
-func (t *Schema) Raw2Schema(lineSchema string) {
-	multilineTags := SplitMultilineSchema(lineSchema)
-	for i, lineTags := range multilineTags {
-		if i == 0 && IsMetaLine(lineTags) {
-			meta := ParseMeta(lineTags)
-			t.ID = meta.ID
-			t.Version = meta.Version
-			continue
-		}
-		fullname := t.getFullname(lineTags)
-		parent, propertyName := t.parseFullname(fullname)
+func (t *Schema) Raw2Schema(lineSchema Jsonschemaline) {
+	for _, item := range lineSchema.Items {
+		parent, propertyName := t.parseFullname(item.Fullname)
 		property := parent.GetByFullname(propertyName)
-		property.structKeywordsFromRaw(lineTags, parent, propertyName)
+		property.structKeywordsFromRaw(item.TagLineKVpair, parent, propertyName)
 	}
 }
 

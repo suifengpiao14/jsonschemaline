@@ -49,14 +49,19 @@ fullname=pageIndex,format=number,required,dst={{setValue . "Offset" (mul  (getVa
 
 func TestParseInstructOut(t *testing.T) {
 	//instructs := jsonschemaline.ParseOneInstructTp(schemalineOut)
-	instructTps := jsonschemaline.ParseInstructTp(schemalineOut2)
-	for _, instructTp := range instructTps {
-		fmt.Println(instructTp.String())
+	lineschema, err := jsonschemaline.ParseJsonschemaline(schemalineOut2)
+	if err != nil {
+		panic(err)
 	}
+	instructTp := jsonschemaline.ParseInstructTp(*lineschema)
+	fmt.Println(instructTp.String())
 }
 func TestParseInstructIn(t *testing.T) {
-	instructTps := jsonschemaline.ParseInstructTp(schemalineIn2)
-	for _, instructTp := range instructTps {
-		fmt.Println(instructTp.String())
+	lineschema, err := jsonschemaline.ParseJsonschemaline(schemalineIn2)
+	if err != nil {
+		panic(err)
 	}
+	instructTp := jsonschemaline.ParseInstructTp(*lineschema)
+	fmt.Println(instructTp.String())
+
 }

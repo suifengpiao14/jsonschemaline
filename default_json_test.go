@@ -15,13 +15,15 @@ fullname=pageIndex,format=number,required,dst={{setValue . "Offset" (mul  (getVa
 
 func TestParseDefaultJson(t *testing.T) {
 
-	defaultJsons, err := jsonschemaline.ParseDefaultJson(schemalineIn3)
+	schemaline, err := jsonschemaline.ParseJsonschemaline(schemalineIn3)
 	if err != nil {
 		panic(err)
 	}
-	for _, defaultJson := range defaultJsons {
-		fmt.Printf("%#v", defaultJson)
+	defaultJson, err := jsonschemaline.ParseDefaultJson(*schemaline)
+	if err != nil {
+		panic(err)
 	}
+	fmt.Printf("%#v", defaultJson)
 }
 
 func TestJsonMerge(t *testing.T) {

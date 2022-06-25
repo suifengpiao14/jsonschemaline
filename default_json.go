@@ -15,26 +15,8 @@ type DefaultJson struct {
 	Json    string
 }
 
-func ParseDefaultJson(linechemas string) (defaultJsons []*DefaultJson, err error) {
-	linechemas = strings.TrimSpace(strings.ReplaceAll(linechemas, "\r\n", EOF))
-	arr := strings.Split(linechemas, EOF_DOUBLE)
-	defaultJsons = make([]*DefaultJson, 0)
-	for _, lineschema := range arr {
-		defaultJson, err := ParseOneDefaultJson(lineschema)
-		if err != nil {
-			return nil, err
-		}
-		defaultJsons = append(defaultJsons, defaultJson)
-	}
-	return defaultJsons, nil
-}
-
-func ParseOneDefaultJson(lineschema string) (defaultJson *DefaultJson, err error) {
+func ParseDefaultJson(jsonschemaline Jsonschemaline) (defaultJson *DefaultJson, err error) {
 	defaultJson = new(DefaultJson)
-	jsonschemaline, err := ParseJsonschemaline(lineschema)
-	if err != nil {
-		return nil, err
-	}
 	id := jsonschemaline.Meta.ID.String()
 	defaultJson.ID = id
 	defaultJson.Version = jsonschemaline.Meta.Version
