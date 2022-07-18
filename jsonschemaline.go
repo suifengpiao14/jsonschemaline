@@ -139,7 +139,21 @@ type KVpair struct {
 	Value string
 }
 
+func (kvPair KVpair) Order() int {
+
+	for k, v := range jsonschemalineItemOrder {
+		if kvPair.Key == v {
+			return k
+		}
+	}
+	return 0
+}
+
 type TagLineKVpair []KVpair
+
+func (a TagLineKVpair) Len() int           { return len(a) }
+func (a TagLineKVpair) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a TagLineKVpair) Less(i, j int) bool { return a[i].Order() < a[j].Order() }
 
 //ParseMultiJsonSchemaline 解析多个 jsonschemaline
 func ParseMultiJsonSchemaline(jsonschemalineBlocks string) (jsonschemalines []*Jsonschemaline, err error) {
@@ -264,4 +278,13 @@ func PretreatJsonschemalineRaw(tag string) (formatTag string) {
 	}
 	formatTag = strings.Join(tmpArr, ",")
 	return formatTag
+}
+
+func JsonSchema2LineSchema(jsonschemaStr string) (lineschemaStr string, err error) {
+	var jschema Schema
+	err = jschema.UnmarshalJSON([]byte(jsonschemaStr))
+	if err != nil {
+		return "", err
+	}
+	return jschema.Lineschema()
 }

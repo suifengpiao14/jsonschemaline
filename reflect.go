@@ -9,9 +9,11 @@ package jsonschemaline
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net"
 	"net/url"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -96,11 +98,12 @@ type Schema struct {
 	// Special boolean representation of the Schema - section 4.3.2
 	boolean *bool
 
-	Src          string `json:"src,omitempty"`
-	Dst          string `json:"dst,omitempty"`
-	Fullname     string `json:"fullname,omitempty"`
-	Tpl          string `json:"tpl,omitempty"`
-	PropertyName string `json:"-"`
+	Src          string  `json:"src,omitempty"`
+	Dst          string  `json:"dst,omitempty"`
+	Fullname     string  `json:"fullname,omitempty"`
+	Tpl          string  `json:"tpl,omitempty"`
+	PropertyName string  `json:"-"`
+	Parent       *Schema `json:"-"`
 }
 
 var (
@@ -640,6 +643,170 @@ func (t *Schema) Raw2Schema(lineSchema Jsonschemaline) {
 		property := parent.GetByFullname(propertyName)
 		property.structKeywordsFromRaw(item.TagLineKVpair, parent, propertyName)
 	}
+}
+
+func (t *Schema) Lineschema() (lineSchema string, err error) {
+	lines := make([]string, 0)
+	if t.Items == nil {
+		required := make([]string, 0)
+		if t.Parent != nil {
+			required = t.Parent.Required
+		}
+		line, err := OneRawLineSchema(t, required)
+		if err != nil {
+			return "", err
+		}
+		lines = append(lines, line)
+	}
+
+	if t.Properties != nil {
+		for _, k := range t.Properties.Keys() {
+			v, _ := t.Properties.Get(k)
+
+			b, err := json.Marshal(v)
+			if err != nil {
+				return "", err
+			}
+			var subSchema Schema
+			err = json.Unmarshal(b, &subSchema)
+			if err != nil {
+				return "", err
+			}
+			subSchema.Parent = t
+			if t.Fullname == "" {
+				subSchema.Fullname = k
+			} else {
+				subSchema.Fullname = fmt.Sprintf("%s.%s", t.Fullname, k)
+			}
+			line, err := subSchema.Lineschema()
+			lines = append(lines, line)
+		}
+	}
+	if t.Items != nil {
+		subSchema := t.Items
+		name := t.Fullname
+
+		subSchema.Fullname = fmt.Sprintf("%s[]", name)
+		subSchema.Parent = t
+		line, err := subSchema.Lineschema()
+		if err != nil {
+			return "", err
+		}
+		lines = append(lines, line)
+	}
+	return strings.Join(lines, EOF), nil
+}
+
+func OneRawLineSchema(schema *Schema, required []string) (oneRaw string, err error) {
+	lineKV := make(TagLineKVpair, 0)
+	requiredMap := make(map[string]string)
+	for _, k := range required {
+		requiredMap[k] = k
+	}
+	rv := reflect.Indirect(reflect.ValueOf(schema))
+	if rv.Kind() == reflect.Struct {
+		rt := rv.Type()
+		for i := 0; i < rt.NumField(); i++ {
+			name := rt.Field(i).Name
+			if len(name) > 1 {
+				name = fmt.Sprintf("%s%s", strings.ToLower(name[0:1]), name[1:])
+			}
+			if name == "type" {
+				continue
+			}
+
+			value := rv.Field(i)
+			switch value.Kind() {
+			case reflect.Float64:
+				val := value.Float()
+				if val > 0 {
+					kv := KVpair{
+						Key:   name,
+						Value: fmt.Sprintf("%f", val),
+					}
+					lineKV = append(lineKV, kv)
+				}
+
+			case reflect.Int:
+				val := value.Int()
+				if val > 0 {
+					kv := KVpair{
+						Key:   name,
+						Value: fmt.Sprintf("%d", val),
+					}
+					lineKV = append(lineKV, kv)
+				}
+
+			case reflect.Bool:
+				val := value.Bool()
+				if val {
+					kv := KVpair{
+						Key:   name,
+						Value: "true",
+					}
+					lineKV = append(lineKV, kv)
+				}
+
+			case reflect.String:
+				val := value.String()
+				if val == "" {
+					continue
+				}
+				if name == "fullname" {
+					val = strings.ReplaceAll(val, ".#", "[]")
+					lastIndex := strings.LastIndex(val, ".")
+					if lastIndex > -1 && lastIndex < len(val)-1 {
+						propName := strings.TrimSuffix(val[lastIndex+1:], "[]")
+						_, ok := requiredMap[propName]
+						if ok {
+							kv := KVpair{
+								Key: "required",
+							}
+							lineKV = append(lineKV, kv)
+						}
+					}
+				}
+				kv := KVpair{
+					Key:   name,
+					Value: val,
+				}
+				lineKV = append(lineKV, kv)
+			case reflect.Array:
+				if name == "required" {
+					continue
+				}
+				b, err := json.Marshal(value.Interface())
+				if err != nil {
+					return "", err
+				}
+				val := string(b)
+				if val == "" {
+					continue
+				}
+				kv := KVpair{
+					Key:   name,
+					Value: val,
+				}
+				lineKV = append(lineKV, kv)
+			}
+		}
+
+	}
+
+	sort.Sort(lineKV)
+	var w bytes.Buffer
+	for _, kv := range lineKV {
+		var str string
+		if kv.Value != "" {
+			str = fmt.Sprintf("%s=%s,", kv.Key, kv.Value)
+		} else {
+			str = fmt.Sprintf("%s,", kv.Key)
+		}
+		w.WriteString(str)
+	}
+	oneRaw = w.String()
+	oneRaw = strings.TrimRight(oneRaw, ",")
+	return
 }
 
 func GetMetaLine(tagLineKVpairs []TagLineKVpair) (tagLineKVpair *TagLineKVpair, ok bool) {
