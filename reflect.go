@@ -276,7 +276,7 @@ func (r *Reflector) ReflectFromType(t reflect.Type) *Schema {
 			}
 		}
 		if baseSchemaID != EmptyID {
-			s.ID = baseSchemaID.Add(ToSnakeCase(name))
+			s.ID = baseSchemaID.Add(SnakeCase(name))
 		}
 	}
 
@@ -651,6 +651,9 @@ func (t *Schema) Lineschema() (lineSchema string, err error) {
 		required := make([]string, 0)
 		if t.Parent != nil {
 			required = t.Parent.Required
+			if strings.ToLower(t.Parent.Type) == "array" && t.Parent.Parent != nil { // 父schema为array时，其required 记录在上上级
+				required = t.Parent.Parent.Required
+			}
 		}
 		line, err := OneRawLineSchema(t, required)
 		if err != nil {
@@ -708,13 +711,10 @@ func OneRawLineSchema(schema *Schema, required []string) (oneRaw string, err err
 		rt := rv.Type()
 		for i := 0; i < rt.NumField(); i++ {
 			name := rt.Field(i).Name
-			if len(name) > 1 {
-				name = fmt.Sprintf("%s%s", strings.ToLower(name[0:1]), name[1:])
-			}
 			if name == "type" {
 				continue
 			}
-
+			name = ToLowerCamel(name)
 			value := rv.Field(i)
 			switch value.Kind() {
 			case reflect.Float64:
@@ -754,16 +754,17 @@ func OneRawLineSchema(schema *Schema, required []string) (oneRaw string, err err
 				}
 				if name == "fullname" {
 					val = strings.ReplaceAll(val, ".#", "[]")
-					lastIndex := strings.LastIndex(val, ".")
-					if lastIndex > -1 && lastIndex < len(val)-1 {
-						propName := strings.TrimSuffix(val[lastIndex+1:], "[]")
-						_, ok := requiredMap[propName]
-						if ok {
-							kv := KVpair{
-								Key: "required",
-							}
-							lineKV = append(lineKV, kv)
+					propName := strings.TrimSuffix(val, "[]") // 剔除最后的数组标识
+					lastIndex := strings.LastIndex(propName, ".")
+					if lastIndex > -1 && lastIndex < len(propName)-1 {
+						propName = val[lastIndex+1:]
+					}
+					_, ok := requiredMap[propName]
+					if ok {
+						kv := KVpair{
+							Key: "required",
 						}
+						lineKV = append(lineKV, kv)
 					}
 				}
 				kv := KVpair{
@@ -771,8 +772,11 @@ func OneRawLineSchema(schema *Schema, required []string) (oneRaw string, err err
 					Value: val,
 				}
 				lineKV = append(lineKV, kv)
-			case reflect.Array:
-				if name == "required" {
+			case reflect.Array, reflect.Slice:
+				if value.Len() < 1 {
+					continue
+				}
+				if name == "required" { //required 单独处理
 					continue
 				}
 				b, err := json.Marshal(value.Interface())

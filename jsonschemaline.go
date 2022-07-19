@@ -50,7 +50,7 @@ type JsonschemalineItem struct {
 }
 
 var jsonschemalineItemOrder = []string{
-	"fullname", "src", "dst", "type", "format", "pattern", "required", "title", "description", "default", "comment", "enum", "example", "deprecated", "const",
+	"fullname", "src", "dst", "type", "format", "pattern", "enum", "required", "title", "description", "default", "comment", "example", "deprecated", "const",
 	"multipleOf", "maximum", "exclusiveMaximum", "minimum", "exclusiveMinimum", "maxLength", "minLength",
 	"maxItems",
 	"minItems",
@@ -220,13 +220,11 @@ func ParseJsonschemalineRaw(jsonschemalineRaw string) (meta *Meta, item *Jsonsch
 			tagLineKVPair = append(tagLineKVPair, KVpair{Key: k, Value: v})
 		}
 	}
-	_, hasId := kvMap["id"]
-	_, hasFullname := kvMap["fullname"]
 	jb, err := json.Marshal(kvMap)
 	if err != nil {
 		return nil, nil, err
 	}
-	if hasId && !hasFullname {
+	if IsMetaLine(tagLineKVPair) {
 		meta = new(Meta)
 		err = json.Unmarshal(jb, meta)
 		if err != nil {

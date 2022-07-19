@@ -7,7 +7,7 @@ import (
 	"github.com/suifengpiao14/jsonschemaline"
 )
 
-var jsonStr = `{"$schema":"http://json-schema.org/draft-07/schema#","type":"object","properties":{"items":{"type":"array","allowEmpty":true,"items":{"type":"object","properties":{"id":{"type":"string","src":"hjxmba_dbCityStoreServiceConfigPaginateOut.#.Fid"},"cityId":{"type":"string","src":"hjxmba_dbCityStoreServiceConfigPaginateOut.#.FcityId"},"cityName":{"type":"string","src":"hjxmba_dbCityStoreServiceConfigPaginateOut.#.FcityName"},"status":{"type":"string","src":"hjxmba_dbCityStoreServiceConfigPaginateOut.#.Fstatus"}},"required":["id","cityId","cityName","status"]}},"pageInfo":{"type":"object","properties":{"pageIndex":{"type":"string","src":"input.pageIndex"},"pageSize":{"type":"string","format":"number","src":"input.pageSize"},"total":{"type":"string","src":"hjxmba_dbCityStoreServiceConfigTotalOut"}},"required":["pageIndex","pageSize","total"]}},"required":["items","pageInfo"]}`
+var jsonStr = `{"$schema":"http://json-schema.org/draft-07/schema#","$id":"main","type":"object","properties":{"config":{"type":"object","properties":{"hsbRemark":{"type":"string"},"id":{"type":"string","format":"number"},"popUpWindow":{"type":"string","enum":["0","1"]},"xyRemark":{"type":"string"},"status":{"type":"string","enum":["0","1"]}},"required":["hsbRemark","id","popUpWindow","xyRemark"]}},"required":["config"]}`
 
 func TestJsonSchemalineString(t *testing.T) {
 	lineschema, err := jsonschemaline.ParseJsonschemaline(schemalineOut)
