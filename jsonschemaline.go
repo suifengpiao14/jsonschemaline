@@ -3,6 +3,7 @@ package jsonschemaline
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"regexp"
 	"strings"
 
@@ -93,7 +94,7 @@ type Jsonschemaline struct {
 func (l *Jsonschemaline) String() string {
 
 	lineArr := make([]string, 0)
-	lineArr = append(lineArr, fmt.Sprintf("id=%s,version=%s", l.Meta.ID, l.Meta.Version))
+	lineArr = append(lineArr, fmt.Sprintf("version=%s,id=%s", l.Meta.Version, l.Meta.ID))
 	var linemap []map[string]string
 	b, err := json.Marshal(l.Items)
 	if err != nil {
@@ -109,10 +110,10 @@ func (l *Jsonschemaline) String() string {
 	for _, m := range linemap {
 		kvArr := make([]string, 0)
 		for _, k := range jsonschemalineItemOrder {
-			if l.Meta.Direction == INSTRUCT_TYPE_IN && k == "src" {
+			if l.Meta.Direction == LINE_SCHEMA_DIRECTION_IN && k == "src" {
 				continue
 			}
-			if l.Meta.Direction == INSTRUCT_TYPE_OUT && k == "dst" {
+			if l.Meta.Direction == LINE_SCHEMA_DIRECTION_OUT && k == "dst" {
 				continue
 			}
 			v, ok := m[k]
@@ -258,10 +259,10 @@ func ParseJsonschemalineRaw(jsonschemalineRaw string) (meta *Meta, item *Jsonsch
 			return nil, nil, err
 		}
 		switch meta.Direction {
-		case INSTRUCT_TYPE_IN, INSTRUCT_TYPE_OUT:
+		case LINE_SCHEMA_DIRECTION_IN, LINE_SCHEMA_DIRECTION_OUT:
 
 		default:
-			err := errors.Errorf("meta direction must one of  [%s,%s] ,got:%s", INSTRUCT_TYPE_IN, INSTRUCT_TYPE_OUT, jsonschemalineRaw)
+			err := errors.Errorf("meta direction must one of  [%s,%s] ,got:%s", LINE_SCHEMA_DIRECTION_IN, LINE_SCHEMA_DIRECTION_OUT, jsonschemalineRaw)
 			return nil, nil, err
 
 		}
@@ -324,4 +325,73 @@ func JsonSchema2LineSchema(jsonschemaStr string) (lineschemaStr string, err erro
 		return "", err
 	}
 	return jschema.Lineschema()
+}
+
+//Json2gsonPatch
+func Json2lineSchema(jsonStr string) (out *Jsonschemaline, err error) {
+	out = &Jsonschemaline{
+		Meta: &Meta{
+			Version:   "",
+			ID:        "example",
+			Direction: LINE_SCHEMA_DIRECTION_IN,
+		},
+		Items: make([]*JsonschemalineItem, 0),
+	}
+	var input interface{}
+	err = json.Unmarshal([]byte(jsonStr), &input)
+	if err != nil {
+		return nil, err
+	}
+	rv := reflect.Indirect(reflect.ValueOf(input))
+	out.Items = parseOneJsonKey2Line(rv, "")
+	return out, nil
+}
+
+func parseOneJsonKey2Line(rv reflect.Value, fullname string) (items []*JsonschemalineItem) {
+	items = make([]*JsonschemalineItem, 0)
+	if rv.IsZero() {
+		return items
+	}
+	rv = reflect.Indirect(rv)
+	kind := rv.Kind()
+	switch kind {
+	case reflect.Int, reflect.Float64, reflect.Int64:
+		item := &JsonschemalineItem{
+			Type:     "string",
+			Format:   "number",
+			Fullname: fullname,
+			Example:  rv.String(),
+		}
+		items = append(items, item)
+	case reflect.String:
+		item := &JsonschemalineItem{
+			Type:     "string",
+			Fullname: fullname,
+			Example:  rv.String(),
+		}
+		items = append(items, item)
+	case reflect.Array, reflect.Slice:
+		l := rv.Len()
+		for i := 0; i < l; i++ {
+			v := rv.Index(i)
+			subFullname := fmt.Sprintf("%s[]", fullname)
+			subItems := parseOneJsonKey2Line(v, subFullname)
+			items = append(items, subItems...)
+		}
+	case reflect.Map:
+		iter := rv.MapRange()
+		for iter.Next() {
+			k := iter.Key().String()
+			subFullname := k
+			if fullname != "" {
+				subFullname = fmt.Sprintf("%s.%s", fullname, k)
+			}
+			subItems := parseOneJsonKey2Line(iter.Value(), subFullname)
+			items = append(items, subItems...)
+		}
+	case reflect.Interface, reflect.Ptr:
+		rv = rv.Elem()
+		return parseOneJsonKey2Line(rv, fullname)
+	}
+	return items
 }

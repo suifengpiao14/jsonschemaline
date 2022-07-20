@@ -7,9 +7,9 @@ import (
 )
 
 const (
-	INSTRUCT_TYPE_OUT     = "out"     // 入参
-	INSTRUCT_TYPE_IN      = "in"      // 出参
-	INSTRUCT_TYPE_CONVERT = "convert" // 内部转换
+	LINE_SCHEMA_DIRECTION_OUT     = "out"     // 出参
+	LINE_SCHEMA_DIRECTION_IN      = "in"      // 入参
+	LINE_SCHEMA_DIRECTION_CONVERT = "convert" // 内部转换
 )
 
 type Instruct struct {
@@ -110,7 +110,7 @@ func ParseInstructTp(lineschema Jsonschemaline) (instructTpl *InstructTpl) {
 		instructTpl.Instructs = append(instructTpl.Instructs, &instruct)
 	}
 
-	if instructTpl.Type == INSTRUCT_TYPE_OUT {
+	if instructTpl.Type == LINE_SCHEMA_DIRECTION_OUT {
 		parentInstructs := parseParentInstruct(fullnameList, instructTpl.ID.String())
 		parentInstructs = append(parentInstructs, instructTpl.Instructs...) // 确保跟元素先初始化（防止空数据时，根元素不输出）
 		instructTpl.Instructs = parentInstructs

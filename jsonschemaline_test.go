@@ -28,3 +28,25 @@ func TestJsonSchema2LineSchema(t *testing.T) {
 	fmt.Println(lineschemaStr)
 
 }
+
+func TestJson2lineSchema(t *testing.T) {
+	var jsonStr = `
+		{
+			"config":{
+				"id":"1",
+				"status":"2",
+				"identify":"abcde",
+				"merchantId":"123",
+				"merchantName":"测试商户",
+				"operateName":"彭政",
+				"storeId":"1",
+				"storeName":"门店名称"
+			}
+		}
+	`
+	lineschema, err := jsonschemaline.Json2lineSchema(jsonStr)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(lineschema.String())
+}
