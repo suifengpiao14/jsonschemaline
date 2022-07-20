@@ -659,7 +659,9 @@ func (t *Schema) Lineschema() (lineSchema string, err error) {
 		if err != nil {
 			return "", err
 		}
-		lines = append(lines, line)
+		if line != "" {
+			lines = append(lines, line)
+		}
 	}
 
 	if t.Properties != nil {
@@ -701,6 +703,12 @@ func (t *Schema) Lineschema() (lineSchema string, err error) {
 }
 
 func OneRawLineSchema(schema *Schema, required []string) (oneRaw string, err error) {
+	if schema.Properties != nil || schema.Items != nil {
+		if schema.Version == "" { // 排除最顶层带有协议的对象，其余的子对象、数组不处理
+			return "", nil // 只取基本类型
+		}
+
+	}
 	lineKV := make(TagLineKVpair, 0)
 	requiredMap := make(map[string]string)
 	for _, k := range required {
@@ -711,10 +719,10 @@ func OneRawLineSchema(schema *Schema, required []string) (oneRaw string, err err
 		rt := rv.Type()
 		for i := 0; i < rt.NumField(); i++ {
 			name := rt.Field(i).Name
+			name = ToLowerCamel(name)
 			if name == "type" {
 				continue
 			}
-			name = ToLowerCamel(name)
 			value := rv.Field(i)
 			switch value.Kind() {
 			case reflect.Float64:
@@ -796,7 +804,6 @@ func OneRawLineSchema(schema *Schema, required []string) (oneRaw string, err err
 		}
 
 	}
-
 	sort.Sort(lineKV)
 	var w bytes.Buffer
 	for _, kv := range lineKV {
@@ -887,7 +894,7 @@ func (t *Schema) GetByName(name string) *Schema {
 	}
 	t.Type = "object"
 	charName := name
-	index := strings.Index(name, "[]")
+	index := strings.Index(name, "[]") // 找到第一个[]位置
 	if index > -1 {
 		charName = name[:index]
 	}
@@ -901,8 +908,8 @@ func (t *Schema) GetByName(name string) *Schema {
 			err := errors.Errorf("schema.property element required *Schema,got %#v", inter)
 			panic(err)
 		}
-		for {
-			if out.Type != "array" {
+		for { //递归跳过多重数组
+			if out.Items == nil {
 				break
 			}
 			out = out.Items
@@ -1037,11 +1044,13 @@ func (t *Schema) stringKeywords(tags []KVpair) {
 		case "pattern":
 			t.Pattern = kvPair.Value
 		case "format":
-			switch kvPair.Value {
-			case "date-time", "email", "hostname", "ipv4", "ipv6", "uri", "uuid":
-				t.Format = kvPair.Value
-				//break
-			}
+			t.Format = kvPair.Value
+			// 支持自定义
+			// switch kvPair.Value {
+			// case "date-time", "email", "hostname", "ipv4", "ipv6", "uri", "uuid":
+			// 	t.Format = kvPair.Value
+			// 	//break
+			// }
 		case "readOnly":
 			i, _ := strconv.ParseBool(kvPair.Value)
 			t.ReadOnly = i

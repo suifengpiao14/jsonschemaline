@@ -7,7 +7,7 @@ import (
 	"github.com/suifengpiao14/jsonschemaline"
 )
 
-var jsonStr = `{"$schema":"http://json-schema.org/draft-07/schema#","$id":"main","type":"object","properties":{"config":{"type":"object","properties":{"hsbRemark":{"type":"string"},"id":{"type":"string","format":"number"},"popUpWindow":{"type":"string","enum":["0","1"]},"xyRemark":{"type":"string"},"status":{"type":"string","enum":["0","1"]}},"required":["hsbRemark","id","popUpWindow","xyRemark"]}},"required":["config"]}`
+var jsonStr = `{"$schema":"http://json-schema.org/draft-07/schema#","$id":"execAPIInquiryScreenIdentifyUpdate","type":"object","required":["config"],"properties":{"config":{"properties":{"id":{"type":"string","format":"number"},"status":{"type":"string","enum":["1","2"]},"identify":{"type":"string","minLength":1},"merchantId":{"type":"string","format":"number"},"merchantName":{"type":"string","minLength":1},"operateName":{"type":"string","minLength":1},"storeId":{"type":"string","format":"number"},"storeName":{"type":"string","minLength":1}},"type":"object","required":["id","status","identify","merchantId","merchantName","operateName","storeId","storeName"]}}}`
 
 func TestJsonSchemalineString(t *testing.T) {
 	lineschema, err := jsonschemaline.ParseJsonschemaline(schemalineOut)

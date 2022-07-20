@@ -12,25 +12,25 @@ import (
 type JsonschemalineItem struct {
 	Comments string `json:"comment,omitempty"` // section 8.3
 
-	Type             string        `json:"type,omitempty"`                    // section 6.1.1
-	Enum             []interface{} `json:"enum,omitempty"`                    // section 6.1.2
-	Const            interface{}   `json:"const,omitempty"`                   // section 6.1.3
-	MultipleOf       int           `json:"multipleOf,omitempty,string"`       // section 6.2.1
-	Maximum          int           `json:"maximum,omitempty,string"`          // section 6.2.2
-	ExclusiveMaximum bool          `json:"exclusiveMaximum,omitempty,string"` // section 6.2.3
-	Minimum          int           `json:"minimum,omitempty,string"`          // section 6.2.4
-	ExclusiveMinimum bool          `json:"exclusiveMinimum,omitempty,string"` // section 6.2.5
-	MaxLength        int           `json:"maxLength,omitempty,string"`        // section 6.3.1
-	MinLength        int           `json:"minLength,omitempty,string"`        // section 6.3.2
-	Pattern          string        `json:"pattern,omitempty"`                 // section 6.3.3
-	MaxItems         int           `json:"maxItems,omitempty,string"`         // section 6.4.1
-	MinItems         int           `json:"minItems,omitempty,string"`         // section 6.4.2
-	UniqueItems      bool          `json:"uniqueItems,omitempty,string"`      // section 6.4.3
-	MaxContains      uint          `json:"maxContains,omitempty,string"`      // section 6.4.4
-	MinContains      uint          `json:"minContains,omitempty,string"`      // section 6.4.5
-	MaxProperties    int           `json:"maxProperties,omitempty,string"`    // section 6.5.1
-	MinProperties    int           `json:"minProperties,omitempty,string"`    // section 6.5.2
-	Required         bool          `json:"required,omitempty,string"`         // section 6.5.3
+	Type             string `json:"type,omitempty"`                    // section 6.1.1
+	Enum             string `json:"enum,omitempty"`                    // section 6.1.2
+	Const            string `json:"const,omitempty"`                   // section 6.1.3
+	MultipleOf       int    `json:"multipleOf,omitempty,string"`       // section 6.2.1
+	Maximum          int    `json:"maximum,omitempty,string"`          // section 6.2.2
+	ExclusiveMaximum bool   `json:"exclusiveMaximum,omitempty,string"` // section 6.2.3
+	Minimum          int    `json:"minimum,omitempty,string"`          // section 6.2.4
+	ExclusiveMinimum bool   `json:"exclusiveMinimum,omitempty,string"` // section 6.2.5
+	MaxLength        int    `json:"maxLength,omitempty,string"`        // section 6.3.1
+	MinLength        int    `json:"minLength,omitempty,string"`        // section 6.3.2
+	Pattern          string `json:"pattern,omitempty"`                 // section 6.3.3
+	MaxItems         int    `json:"maxItems,omitempty,string"`         // section 6.4.1
+	MinItems         int    `json:"minItems,omitempty,string"`         // section 6.4.2
+	UniqueItems      bool   `json:"uniqueItems,omitempty,string"`      // section 6.4.3
+	MaxContains      uint   `json:"maxContains,omitempty,string"`      // section 6.4.4
+	MinContains      uint   `json:"minContains,omitempty,string"`      // section 6.4.5
+	MaxProperties    int    `json:"maxProperties,omitempty,string"`    // section 6.5.1
+	MinProperties    int    `json:"minProperties,omitempty,string"`    // section 6.5.2
+	Required         bool   `json:"required,omitempty,string"`         // section 6.5.3
 	// RFC draft-bhutton-json-schema-validation-00, section 7
 	Format string `json:"format,omitempty"`
 	// RFC draft-bhutton-json-schema-validation-00, section 8
@@ -66,9 +66,9 @@ var jsonschemalineItemOrder = []string{
 }
 
 type Meta struct {
-	ID      ID     `json:"id"`
-	Version string `json:"version"`
-	Type    string
+	ID        ID     `json:"id"`
+	Version   string `json:"version"`
+	Direction string `json:"direction"`
 }
 
 func IsMetaLine(lineTags TagLineKVpair) bool {
@@ -109,10 +109,10 @@ func (l *Jsonschemaline) String() string {
 	for _, m := range linemap {
 		kvArr := make([]string, 0)
 		for _, k := range jsonschemalineItemOrder {
-			if l.Meta.Type == INSTRUCT_TYPE_IN && k == "src" {
+			if l.Meta.Direction == INSTRUCT_TYPE_IN && k == "src" {
 				continue
 			}
-			if l.Meta.Type == INSTRUCT_TYPE_OUT && k == "dst" {
+			if l.Meta.Direction == INSTRUCT_TYPE_OUT && k == "dst" {
 				continue
 			}
 			v, ok := m[k]
@@ -191,18 +191,18 @@ func ParseJsonschemaline(jsonschemalineBlock string) (jsonschemaline *Jsonschema
 		err := errors.Errorf("jsonschemaline ID required,got:%s", jsonschemalineBlock)
 		return nil, err
 	}
+
 	for _, item := range jsonschemaline.Items {
 		str := strings.ReplaceAll(item.Fullname, "[]", ".#")
 		srcOrDst := fmt.Sprintf("%s.%s", jsonschemaline.Meta.ID, str)
 		if item.Src == "" {
 			item.Src = srcOrDst
-			jsonschemaline.Meta.Type = INSTRUCT_TYPE_IN
 		}
 		if item.Dst == "" {
 			item.Dst = srcOrDst
-			jsonschemaline.Meta.Type = INSTRUCT_TYPE_OUT
 		}
 	}
+
 	return jsonschemaline, nil
 }
 
@@ -211,14 +211,37 @@ func ParseJsonschemalineRaw(jsonschemalineRaw string) (meta *Meta, item *Jsonsch
 	jsonschemalineRaw = PretreatJsonschemalineRaw(jsonschemalineRaw)
 	kvStrArr := SplitOnUnescapedCommas(jsonschemalineRaw)
 	kvMap := make(map[string]string)
+	enumList := make([]string, 0)
+	constList := make([]string, 0)
 	tagLineKVPair := make(TagLineKVpair, 0)
 	for _, kvStr := range kvStrArr {
 		kvPair := strings.SplitN(kvStr, "=", 2)
 		if len(kvPair) == 2 {
 			k, v := strings.TrimSpace(kvPair[0]), strings.TrimSpace(kvPair[1])
-			kvMap[k] = v
+			switch k {
+			case "enum":
+				enumList = append(enumList, v)
+			case "const":
+				constList = append(constList, v)
+			default:
+				kvMap[k] = v
+			}
 			tagLineKVPair = append(tagLineKVPair, KVpair{Key: k, Value: v})
 		}
+	}
+	if len(enumList) > 0 {
+		jb, err := json.Marshal(enumList)
+		if err != nil {
+			return nil, nil, err
+		}
+		kvMap["enum"] = string(jb)
+	}
+	if len(constList) > 0 {
+		jb, err := json.Marshal(constList)
+		if err != nil {
+			return nil, nil, err
+		}
+		kvMap["const"] = string(jb)
 	}
 	jb, err := json.Marshal(kvMap)
 	if err != nil {
@@ -230,11 +253,27 @@ func ParseJsonschemalineRaw(jsonschemalineRaw string) (meta *Meta, item *Jsonsch
 		if err != nil {
 			return nil, nil, err
 		}
+		if meta.Version == "" || meta.ID == "" {
+			err := errors.Errorf("meta line required version、id ,got:%s", jsonschemalineRaw)
+			return nil, nil, err
+		}
+		switch meta.Direction {
+		case INSTRUCT_TYPE_IN, INSTRUCT_TYPE_OUT:
+
+		default:
+			err := errors.Errorf("meta direction must one of  [%s,%s] ,got:%s", INSTRUCT_TYPE_IN, INSTRUCT_TYPE_OUT, jsonschemalineRaw)
+			return nil, nil, err
+
+		}
 		return meta, nil, nil
 	}
 	item = new(JsonschemalineItem)
 	err = json.Unmarshal(jb, item)
 	if err != nil {
+		return nil, nil, err
+	}
+	if item.Src == "" && item.Dst == "" {
+		err := errors.Errorf("at least one of dst/src required ,got :%s", jsonschemalineRaw)
 		return nil, nil, err
 	}
 

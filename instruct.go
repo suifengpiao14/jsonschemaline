@@ -82,7 +82,7 @@ func ParseInstructTp(lineschema Jsonschemaline) (instructTpl *InstructTpl) {
 	instructTpl = new(InstructTpl)
 	instructTpl.ID = lineschema.Meta.ID
 	instructTpl.Version = lineschema.Meta.Version
-	instructTpl.Type = INSTRUCT_TYPE_IN
+	instructTpl.Type = lineschema.Meta.Direction
 	fullnameList := make([]string, 0)
 	for _, item := range lineschema.Items {
 		instruct := Instruct{
