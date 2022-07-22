@@ -331,7 +331,7 @@ func JsonSchema2LineSchema(jsonschemaStr string) (lineschemaStr string, err erro
 func Json2lineSchema(jsonStr string) (out *Jsonschemaline, err error) {
 	out = &Jsonschemaline{
 		Meta: &Meta{
-			Version:   "",
+			Version:   "http://json-schema.org/draft-07/schema#",
 			ID:        "example",
 			Direction: LINE_SCHEMA_DIRECTION_IN,
 		},
