@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+	"github.com/tidwall/sjson"
 )
 
 type JsonschemalineItem struct {
@@ -280,6 +281,34 @@ func ParseJsonschemalineRaw(jsonschemalineRaw string) (meta *Meta, item *Jsonsch
 
 	item.TagLineKVpair = tagLineKVPair
 	return nil, item, nil
+}
+
+func (l *Jsonschemaline) Jsonschemaline2json() (jsonStr string, err error) {
+	jsonStr = ""
+	for _, item := range l.Items {
+		key := strings.ReplaceAll(item.Fullname, "[]", ".0")
+		var value interface{}
+		if item.Example != "" {
+			value = item.Example
+		} else if item.Default != "" {
+			value = item.Default
+		} else {
+			switch item.Type {
+			case "int", "integer":
+				value = 0
+			case "number":
+				value = "0"
+			case "string":
+				value = ""
+			}
+		}
+
+		jsonStr, err = sjson.Set(jsonStr, key, value)
+		if err != nil {
+			return "", err
+		}
+	}
+	return jsonStr, nil
 }
 
 //PretreatJsonschemalineRaw 处理enum []格式
