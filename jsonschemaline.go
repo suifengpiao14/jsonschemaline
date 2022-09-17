@@ -283,6 +283,15 @@ func ParseJsonschemalineRaw(jsonschemalineRaw string) (meta *Meta, item *Jsonsch
 	return nil, item, nil
 }
 
+func (l *Jsonschemaline) JsonSchema() (jsonschemaByte []byte, err error) {
+	jsonSchema := new(Schema)
+	jsonSchema.Raw2Schema(*l)
+	jsonschemaByte, err = jsonSchema.MarshalJSON()
+	if err != nil {
+		return
+	}
+	return jsonschemaByte, nil
+}
 func (l *Jsonschemaline) Jsonschemaline2json() (jsonStr string, err error) {
 	jsonStr = ""
 	for _, item := range l.Items {
