@@ -1,13 +1,8 @@
 package jsonschemaline
 
 import (
-	"regexp"
-
 	"goa.design/goa/v3/codegen"
 )
-
-var matchFirstCap = regexp.MustCompile("(.)([A-Z][a-z]+)")
-var matchAllCap = regexp.MustCompile("([a-z0-9])([A-Z])")
 
 // 封装 goa.design/goa/v3/codegen 方便后续可定制
 func ToCamel(name string) string {

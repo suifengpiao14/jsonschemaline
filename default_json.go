@@ -1,7 +1,6 @@
 package jsonschemaline
 
 import (
-	"fmt"
 	"strings"
 
 	jsonpatch "github.com/evanphx/json-patch/v5"
@@ -24,8 +23,8 @@ func ParseDefaultJson(jsonschemaline Jsonschemaline) (defaultJson *DefaultJson, 
 	for _, item := range jsonschemaline.Items {
 		if item.Default != "" {
 			path := strings.ReplaceAll(item.Fullname, "[]", ".#")
-			k := fmt.Sprintf("%s.%s", id, path)
-			kvmap[k] = item.Default
+			//k := fmt.Sprintf("%s.%s", id, path)
+			kvmap[path] = item.Default
 		}
 	}
 	jsonContent := ""

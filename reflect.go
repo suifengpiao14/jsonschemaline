@@ -638,6 +638,11 @@ func (t *Schema) structKeywordsFromTags(f reflect.StructField, parent *Schema, p
 	t.extraKeywords(extras)
 }
 func (t *Schema) Raw2Schema(lineSchema Jsonschemaline) {
+	if lineSchema.Meta != nil {
+		t.Version = lineSchema.Meta.Version
+		t.ID = lineSchema.Meta.ID
+	}
+
 	for _, item := range lineSchema.Items {
 		parent, propertyName := t.parseFullname(item.Fullname)
 		property := parent.GetByFullname(propertyName)
@@ -684,6 +689,9 @@ func (t *Schema) Lineschema() (lineSchema string, err error) {
 				subSchema.Fullname = fmt.Sprintf("%s.%s", t.Fullname, k)
 			}
 			line, err := subSchema.Lineschema()
+			if err != nil {
+				return "", err
+			}
 			lines = append(lines, line)
 		}
 	}

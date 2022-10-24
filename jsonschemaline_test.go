@@ -79,3 +79,37 @@ func TestSjson(t *testing.T) {
 	}
 	fmt.Println(out)
 }
+func TestJsonschemaline2json(t *testing.T) {
+
+	l := NewLineSchema()
+	jsonStr, err := l.Jsonschemaline2json()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(jsonStr)
+}
+
+func NewLineSchema() (l *jsonschemaline.Jsonschemaline) {
+	var jsonStr = `
+		{
+			"config":{
+				"id":"1",
+				"status":"2",
+				"identify":"abcde",
+				"merchantId":"123",
+				"merchantName":"测试商户",
+				"operateName":"彭政",
+				"storeId":"1",
+				"storeName":"门店名称",
+				"array":[
+					{"id":"2","name":"ok"}
+					]
+			}
+		}
+	`
+	lineschema, err := jsonschemaline.Json2lineSchema(jsonStr)
+	if err != nil {
+		panic(err)
+	}
+	return lineschema
+}
