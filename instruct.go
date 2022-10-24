@@ -13,11 +13,13 @@ const (
 )
 
 type Instruct struct {
-	ID  string // 唯一标识
-	Cmd string
-	Src string
-	Dst string
-	Tpl string
+	ID            string // 唯一标识
+	Cmd           string
+	Src           string
+	Dst           string
+	Tpl           string
+	ExtraEndTpl   []string // 一个元素代表一个模板命令,方便去重
+	ExtraStartTpl []string // 一个元素代表一个模板命令,方便去重
 }
 
 type Instructs []*Instruct
@@ -60,9 +62,17 @@ func (instructTpls InstructTpls) GetByID(id string) *InstructTpl {
 }
 
 func (instructTpl *InstructTpl) String() string {
-	valueArr := make([]string, 0)
-	valueArr = append(valueArr, fmt.Sprintf(`{{define "%s"}}`, instructTpl.ID))
+	allTplArr := make([]string, 0)
+	allTplArr = append(allTplArr, fmt.Sprintf(`{{define "%s"}}`, instructTpl.ID))
+	extraStartTpls := make(map[string]bool)
+	middlTpls := make([]string, 0)
+	extraEndTpls := make(map[string]bool)
 	for _, instruct := range instructTpl.Instructs {
+
+		for _, extraTpl := range instruct.ExtraStartTpl {
+			extraStartTpls[extraTpl] = true
+		}
+
 		dst := instruct.Dst
 		src := instruct.Src
 		var value string
@@ -71,10 +81,22 @@ func (instructTpl *InstructTpl) String() string {
 		} else {
 			value = fmt.Sprintf(`{{%s . "%s" "%s"}}`, instruct.Cmd, dst, src)
 		}
-		valueArr = append(valueArr, value)
+		middlTpls = append(middlTpls, value)
+		for _, extraTpl := range instruct.ExtraEndTpl {
+			extraEndTpls[extraTpl] = true
+		}
 	}
-	valueArr = append(valueArr, `{{end}}`)
-	out := strings.Join(valueArr, "\n")
+
+	for extraTpl := range extraStartTpls {
+		allTplArr = append(allTplArr, extraTpl)
+	}
+	allTplArr = append(allTplArr, middlTpls...)
+	for extraTpl := range extraEndTpls {
+		allTplArr = append(allTplArr, extraTpl)
+	}
+
+	allTplArr = append(allTplArr, `{{end}}`)
+	out := strings.Join(allTplArr, "\n")
 	return out
 }
 
@@ -111,27 +133,29 @@ func ParseInstructTp(lineschema Jsonschemaline) (instructTpl *InstructTpl) {
 	}
 
 	if instructTpl.Type == LINE_SCHEMA_DIRECTION_OUT {
-		parentInstructs := parseParentInstruct(fullnameList, instructTpl.ID.String())
-		parentInstructs = append(parentInstructs, instructTpl.Instructs...) // 确保跟元素先初始化（防止空数据时，根元素不输出）
-		instructTpl.Instructs = parentInstructs
+		*instructTpl = FormatOutputTplInstruct(*instructTpl)
 	}
 
 	return instructTpl
 }
 
-func parseParentInstruct(fullnames []string, root string) (instructs Instructs) {
-	instructs = Instructs{}
-	for _, fullname := range fullnames {
-		instrList := parseFullname(fullname, root)
-		instructs = append(instructs, instrList...)
+func FormatOutputTplInstruct(instructTpl InstructTpl) (newInstructTpl InstructTpl) {
+	newInstructTpl = instructTpl
+	instructs := Instructs{}
+	root := instructTpl.ID.String()
+	for _, instruct := range instructTpl.Instructs {
+		newInstruct := FormatOutputInstruct(*instruct, root)
+		instructs = append(instructs, &newInstruct)
 	}
 	instructs = instructs.Unique()
 	sort.Sort(instructs)
-	return instructs
+	newInstructTpl.Instructs = instructs
+	return newInstructTpl
 }
 
-func parseFullname(fullname string, root string) (instructs Instructs) {
-	instructs = Instructs{}
+func FormatOutputInstruct(instruct Instruct, root string) (newInstruct Instruct) {
+	newInstruct = instruct
+	fullname := instruct.ID
 	for {
 		if fullname == "" {
 			break
@@ -141,16 +165,17 @@ func parseFullname(fullname string, root string) (instructs Instructs) {
 			break
 		}
 		fullname = fullname[:lastIndex]
-
-		instruct := &Instruct{ID: fullname}
 		if strings.HasSuffix(fullname, "[]") {
 			fullname = strings.TrimSuffix(fullname, "[]")
-			instruct.ID = fullname
-			instruct.Tpl = fmt.Sprintf(`{{setValue . "%s.%s" list }}`, root, fullname)
+			startTpl := fmt.Sprintf(`{{setValue . "%s.%s" list }}`, root, fullname)
+			newInstruct.ExtraStartTpl = append(newInstruct.ExtraStartTpl, startTpl)
+			reverseTpl := fmt.Sprintf(`{{getSetColumn2Row . "%s.%s"}}`, root, fullname)
+			newInstruct.ExtraEndTpl = append(newInstruct.ExtraEndTpl, reverseTpl) // 数组增加翻转命令
 		} else {
-			instruct.Tpl = fmt.Sprintf(`{{setValue . "%s.%s" dict }}`, root, fullname)
+			startTpl := fmt.Sprintf(`{{setValue . "%s.%s" dict }}`, root, fullname)
+			newInstruct.ExtraStartTpl = append(newInstruct.ExtraStartTpl, startTpl)
 		}
-		instructs = append(instructs, instruct)
 	}
-	return instructs
+	newInstruct.Dst = strings.ReplaceAll(newInstruct.Dst, ".#", "")
+	return newInstruct
 }
