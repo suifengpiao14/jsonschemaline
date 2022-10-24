@@ -167,15 +167,12 @@ func FormatOutputInstruct(instruct Instruct, root string) (newInstruct Instruct)
 		fullname = fullname[:lastIndex]
 		if strings.HasSuffix(fullname, "[]") {
 			fullname = strings.TrimSuffix(fullname, "[]")
-			startTpl := fmt.Sprintf(`{{setValue . "%s.%s" list }}`, root, fullname)
+			startTpl := fmt.Sprintf(`{{setValue . "%s.%s" list }}`, root, fullname) // 数组需要后续翻转，所以先声明为对象
 			newInstruct.ExtraStartTpl = append(newInstruct.ExtraStartTpl, startTpl)
-			reverseTpl := fmt.Sprintf(`{{getSetColumn2Row . "%s.%s"}}`, root, fullname)
-			newInstruct.ExtraEndTpl = append(newInstruct.ExtraEndTpl, reverseTpl) // 数组增加翻转命令
 		} else {
 			startTpl := fmt.Sprintf(`{{setValue . "%s.%s" dict }}`, root, fullname)
 			newInstruct.ExtraStartTpl = append(newInstruct.ExtraStartTpl, startTpl)
 		}
 	}
-	newInstruct.Dst = strings.ReplaceAll(newInstruct.Dst, ".#", "")
 	return newInstruct
 }
