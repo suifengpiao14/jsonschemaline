@@ -322,7 +322,7 @@ func (l *Jsonschemaline) Jsonschemaline2json() (jsonStr string, err error) {
 
 //PretreatJsonschemalineRaw 处理enum []格式
 func PretreatJsonschemalineRaw(tag string) (formatTag string) {
-	preg := "enum=\\[(.*)\\],"
+	preg := "enum=\\[(.*)\\]"
 	formatTag = strings.Trim(tag, ",")
 	reg := regexp.MustCompile(preg)
 	matchArr := reg.FindAllStringSubmatch(tag, -1)
@@ -335,7 +335,7 @@ func PretreatJsonschemalineRaw(tag string) (formatTag string) {
 			formatTag = strings.ReplaceAll(formatTag, matchRaw[0], replaceStr)
 		}
 	}
-
+	formatTag = strings.Trim(formatTag, ",") // 删除前后分号
 	hasType := false
 	kvStrArr := strings.Split(formatTag, ",")
 	tmpArr := make([]string, 0)

@@ -113,3 +113,28 @@ func NewLineSchema() (l *jsonschemaline.Jsonschemaline) {
 	}
 	return lineschema
 }
+
+func TestParse(t *testing.T) {
+	line := `
+	version=http://json-schema.org/draft-07/schema,id=input,direction=in
+fullname=config.hsbRemark,dst=FhsbRemark,required
+fullname=config.popUpWindow,dst=FpopUpWindow,format=number,required,enum=["0","1"]
+fullname=config.xyRemark,dst=FxyRemark,required
+fullname=config.status,dst=Fstatus,enum=["0","1"]
+	`
+
+	lineschema, err := jsonschemaline.ParseJsonschemaline(line)
+	if err != nil {
+		panic(err)
+	}
+
+	schema := new(jsonschemaline.Schema)
+	schema.Raw2Schema(*lineschema)
+	jsb, err := schema.MarshalJSON()
+	if err != nil {
+		panic(err)
+	}
+	jsonschemaStr := string(jsb)
+	fmt.Println(jsonschemaStr)
+
+}
