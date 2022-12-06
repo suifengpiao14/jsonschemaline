@@ -105,14 +105,12 @@ func ParseInstructTp(lineschema Jsonschemaline) (instructTpl *InstructTpl) {
 	instructTpl.ID = lineschema.Meta.ID
 	instructTpl.Version = lineschema.Meta.Version
 	instructTpl.Type = lineschema.Meta.Direction
-	fullnameList := make([]string, 0)
 	for _, item := range lineschema.Items {
 		instruct := Instruct{
 			ID:  item.Fullname,
 			Src: item.Src,
 			Dst: item.Dst,
 		}
-		fullnameList = append(fullnameList, item.Fullname)
 
 		if len(instruct.Src) > 2 && instruct.Src[:2] == "{{" {
 			instruct.Tpl = instruct.Src
