@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/suifengpiao14/jsonschemaline"
+	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 )
 
@@ -55,13 +56,14 @@ func TestJson2lineSchema(t *testing.T) {
 func TestLine2tpl(t *testing.T) {
 	line := `
 	version=http://json-schema.org/draft-07/schema,id=output,direction=out
-fullname=items[].amcUserName,src=hjxAmcRelationPaginateOut.#.Freal_name,required
-fullname=items[].amcUserId,src=hjxAmcRelationPaginateOut.#.Famc_id,required
-fullname=items[].amcUserEmail,src=hjxAmcRelationPaginateOut.#.Famc_name,required
-fullname=items[].xyxzUserId,src=hjxAmcRelationPaginateOut.#.Fuser_id,required
-fullname=pageInfo.pageIndex,src=input.pageIndex,required
-fullname=pageInfo.pageSize,src=input.pageSize,required
-fullname=pageInfo.total,src=hjxAmcRelationTotalOut,required`
+fullname=items[].class,src=GetByKeyOut.0.Fvalue.#.class,required
+fullname=items[].priceType,src=GetByKeyOut.0.Fvalue.#.priceType,required
+fullname=items[].minPrice,src=GetByKeyOut.0.Fvalue.#.minPrice,required
+fullname=items[].maxPrice,src=GetByKeyOut.0.Fvalue.#.maxPrice,required
+fullname=items[].maxRate,src=GetByKeyOut.0.Fvalue.#.maxRate,required
+fullname=items[].minRate,src=GetByKeyOut.0.Fvalue.#.minRate,required
+fullname=items[].weight,src=GetByKeyOut.0.Fvalue.#.weight,required
+`
 	lineschema, err := jsonschemaline.ParseJsonschemaline(line)
 	if err != nil {
 		panic(err)
@@ -137,4 +139,50 @@ fullname=config.status,dst=Fstatus,enum=["0","1"]
 	jsonschemaStr := string(jsb)
 	fmt.Println(jsonschemaStr)
 
+}
+
+func TestGjsonPath(t *testing.T) {
+	line := `version=http://json-schema.org/draft-07/schema,id=output,direction=out
+		fullname=items[].content,src=PaginateOut.#.content,required
+		fullname=items[].createdAt,src=PaginateOut.#.created_at,required
+		fullname=items[].deletedAt,src=PaginateOut.#.deleted_at,required
+		fullname=items[].description,src=PaginateOut.#.description,required
+		fullname=items[].icon,src=PaginateOut.#.icon,required
+		fullname=items[].id,src=PaginateOut.#.id,required
+		fullname=items[].key,src=PaginateOut.#.key,required
+		fullname=items[].label,src=PaginateOut.#.label,required
+		fullname=items[].thumb,src=PaginateOut.#.thumb,required
+		fullname=items[].title,src=PaginateOut.#.title,required
+		fullname=items[].updatedAt,src=PaginateOut.#.updated_at,required
+		fullname=pageInfo.pageIndex,src=input.pageIndex,required
+		fullname=pageInfo.pageSize,src=input.pageSize,required
+		fullname=pageInfo.total,src=PaginateTotalOut,required`
+	//{pageInfo:{pageIndex:input.pageIndex,pageSize:input.pageSize,total:PaginateTotalOut},items:{content:PaginateOut.#.content,createdAt:PaginateOut.#.created_at,deletedAt:PaginateOut.#.deleted_at}|@group}
+	lineschema, err := jsonschemaline.ParseJsonschemaline(line)
+	if err != nil {
+		panic(err)
+	}
+	gjsonPath := lineschema.GjsonPath()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(gjsonPath)
+}
+func TestGjsonPath2(t *testing.T) {
+	// line := `version=http://json-schema.org/draft-07/schema,id=input,direction=in
+	// fullname=pageIndex,dst=pageIndex,format=number,required
+	// fullname=pageSize,dst=pageSize,format=number,required`
+	//{pageInfo:{pageIndex:input.pageIndex,pageSize:input.pageSize,total:PaginateTotalOut},items:{content:PaginateOut.#.content,createdAt:PaginateOut.#.created_at,deletedAt:PaginateOut.#.deleted_at}|@group}
+	// lineschema, err := jsonschemaline.ParseJsonschemaline(line)
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// gjsonPath := lineschema.GjsonPath()
+	// if err != nil {
+	// 	panic(err)
+	// }
+	gjsonPath := "{pageIndex:input.pageIndex,pageSize:input.pageSize}"
+	jsonStr := `{"input":{"pageIndex":"0","pageSize":"20"}}`
+	out := gjson.Get(jsonStr, gjsonPath).String()
+	fmt.Println(out)
 }

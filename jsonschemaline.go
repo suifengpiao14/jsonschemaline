@@ -1,6 +1,7 @@
 package jsonschemaline
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -318,6 +319,65 @@ func (l *Jsonschemaline) Jsonschemaline2json() (jsonStr string, err error) {
 		}
 	}
 	return jsonStr, nil
+}
+
+func (l *Jsonschemaline) GjsonPath() (gjsonPath string) {
+	m := &map[string]interface{}{}
+	for _, item := range l.Items {
+		dst, src, format := item.Dst, item.Src, item.Format
+		switch format {
+		case "number", "int", "integer", "float":
+			//src = fmt.Sprintf("%s@tonum", src)
+		}
+		dst = strings.ReplaceAll(dst, ".#", "[]") //替换成[],方便后续遍历
+		arr := strings.Split(dst, ".")
+		l := len(arr)
+		var ref = new(map[string]interface{})
+		*ref = *m
+		for i, key := range arr {
+			if l == i+1 {
+				(*ref)[key] = src
+			}
+			if _, ok := (*ref)[key]; !ok {
+				temp := &map[string]interface{}{}
+				(*ref)[key] = temp
+			}
+			tmp, ok := (*ref)[key].(*map[string]interface{}) //递进
+			if ok {
+				*ref = *tmp
+			}
+		}
+
+	}
+	w := recursionWrite(m)
+	gjsonPath = fmt.Sprintf("{%s}", w.String())
+	return gjsonPath
+}
+
+//生成路径
+func recursionWrite(m *map[string]interface{}) (w bytes.Buffer) {
+	writeComma := false
+	for k, v := range *m {
+		if writeComma {
+			w.WriteString(",")
+		}
+		writeComma = true
+		ref, ok := v.(*map[string]interface{})
+		if !ok {
+			w.WriteString(fmt.Sprintf("%s:%s", k, v))
+			continue
+		}
+		subw := recursionWrite(ref)
+		if strings.HasSuffix(k, "[]") {
+			k = strings.TrimRight(k, "[]")
+			subStr := fmt.Sprintf("%s:{%s}|@group", k, subw.String())
+			w.WriteString(subStr)
+		} else {
+			subStr := fmt.Sprintf("%s:{%s}", k, subw.String())
+			w.WriteString(subStr)
+		}
+	}
+	return w
 }
 
 //PretreatJsonschemalineRaw 处理enum []格式
