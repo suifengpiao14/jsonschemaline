@@ -321,13 +321,12 @@ func (l *Jsonschemaline) Jsonschemaline2json() (jsonStr string, err error) {
 	return jsonStr, nil
 }
 
-func (l *Jsonschemaline) GjsonPath() (gjsonPath string) {
+func (l *Jsonschemaline) GjsonPath(formatPath func(format string, src string, item *JsonschemalineItem) (path string)) (gjsonPath string) {
 	m := &map[string]interface{}{}
 	for _, item := range l.Items {
 		dst, src, format := item.Dst, item.Src, item.Format
-		switch format {
-		case "number", "int", "integer", "float":
-			//src = fmt.Sprintf("%s@tonum", src)
+		if formatPath != nil {
+			src = formatPath(format, src, item)
 		}
 		dst = strings.ReplaceAll(dst, ".#", "[]") //替换成[],方便后续遍历
 		arr := strings.Split(dst, ".")

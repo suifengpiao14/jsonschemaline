@@ -162,7 +162,7 @@ func TestGjsonPath(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	gjsonPath := lineschema.GjsonPath()
+	gjsonPath := lineschema.GjsonPath(nil)
 	if err != nil {
 		panic(err)
 	}
