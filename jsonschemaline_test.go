@@ -90,6 +90,28 @@ func TestJsonschemaline2json(t *testing.T) {
 	}
 	fmt.Println(jsonStr)
 }
+func TestJsonschemaline2json2(t *testing.T) {
+	lineschema := `
+version=http://json-schema.org/draft-07/schema#,direction=out,id=example
+fullname=index,type=string,dst=index
+fullname=position,type=string,dst=position
+fullname=httpStatus,type=string,dst=httpStatus
+fullname=total,type=string,example=60,dst=total
+fullname=type,type=string,dst=type
+fullname=description,type=string,dst=description
+fullname=name,type=string,dst=name
+fullname=size,type=string,example=10,dst=size
+`
+	l, err := jsonschemaline.ParseJsonschemaline(lineschema)
+	if err != nil {
+		panic(err)
+	}
+	jsonStr, err := l.Jsonschemaline2json()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(jsonStr)
+}
 
 func NewLineSchema() (l *jsonschemaline.Jsonschemaline) {
 	var jsonStr = `

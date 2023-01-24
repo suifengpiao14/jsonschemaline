@@ -45,7 +45,7 @@ type JsonschemalineItem struct {
 	Deprecated       bool          `json:"deprecated,omitempty,string"` // section 9.3
 	ReadOnly         bool          `json:"readOnly,omitempty,string"`   // section 9.4
 	WriteOnly        bool          `json:"writeOnly,omitempty,string"`  // section 9.4
-	Example          string        `json:"example,omitempty,string"`    // section 9.5
+	Example          string        `json:"example,omitempty"`           // section 9.5
 	Src              string        `json:"src,omitempty"`
 	Dst              string        `json:"dst,omitempty"`
 	Fullname         string        `json:"fullname"`
@@ -158,7 +158,7 @@ func (a TagLineKVpair) Len() int           { return len(a) }
 func (a TagLineKVpair) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a TagLineKVpair) Less(i, j int) bool { return a[i].Order() < a[j].Order() }
 
-//ParseMultiJsonSchemaline 解析多个 jsonschemaline
+// ParseMultiJsonSchemaline 解析多个 jsonschemaline
 func ParseMultiJsonSchemaline(jsonschemalineBlocks string) (jsonschemalines []*Jsonschemaline, err error) {
 	jsonschemalineBlocks = strings.TrimSpace(strings.ReplaceAll(jsonschemalineBlocks, "\r\n", EOF))
 	arr := strings.Split(jsonschemalineBlocks, EOF_DOUBLE)
@@ -173,7 +173,7 @@ func ParseMultiJsonSchemaline(jsonschemalineBlocks string) (jsonschemalines []*J
 	return jsonschemalines, nil
 }
 
-//ParseJsonschemaline 解析单个 jsonschemaline
+// ParseJsonschemaline 解析单个 jsonschemaline
 func ParseJsonschemaline(jsonschemalineBlock string) (jsonschemaline *Jsonschemaline, err error) {
 	jsonschemaline = new(Jsonschemaline)
 	jsonschemalineBlock = strings.TrimSpace(strings.ReplaceAll(jsonschemalineBlock, "\r\n", EOF))
@@ -353,7 +353,7 @@ func (l *Jsonschemaline) GjsonPath(formatPath func(format string, src string, it
 	return gjsonPath
 }
 
-//生成路径
+// 生成路径
 func recursionWrite(m *map[string]interface{}) (w bytes.Buffer) {
 	writeComma := false
 	for k, v := range *m {
@@ -379,7 +379,7 @@ func recursionWrite(m *map[string]interface{}) (w bytes.Buffer) {
 	return w
 }
 
-//PretreatJsonschemalineRaw 处理enum []格式
+// PretreatJsonschemalineRaw 处理enum []格式
 func PretreatJsonschemalineRaw(tag string) (formatTag string) {
 	preg := "enum=\\[(.*)\\]"
 	formatTag = strings.Trim(tag, ",")
@@ -424,7 +424,7 @@ func JsonSchema2LineSchema(jsonschemaStr string) (lineschemaStr string, err erro
 	return jschema.Lineschema()
 }
 
-//Json2gsonPatch
+// Json2gsonPatch
 func Json2lineSchema(jsonStr string) (out *Jsonschemaline, err error) {
 	out = &Jsonschemaline{
 		Meta: &Meta{
