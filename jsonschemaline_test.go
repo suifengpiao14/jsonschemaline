@@ -112,6 +112,38 @@ fullname=size,type=string,example=10,dst=size
 	}
 	fmt.Println(jsonStr)
 }
+func TestJsonschemaline2json3(t *testing.T) {
+	lineschema := `
+	version=http://json-schema.org/draft-07/schema#,direction=out,id=example
+	fullname=pagination.index,type=string,example=0,dst=pagination.index
+	fullname=pagination.total,type=string,example=60,dst=pagination.total
+	fullname=items[].link,type=string,dst=items[].link
+	fullname=items[].id,type=string,example=0,dst=items[].id
+	fullname=message,type=string,example=-,dst=message
+	fullname=pagination.size,type=string,example=10,dst=pagination.size
+	fullname=items[].endAt,type=string,example=2023-01-30 00:00:00,dst=items[].endAt
+	fullname=items[].title,type=string,example=新年好礼,dst=items[].title
+	fullname=items,type=array,example=-,dst=items
+	fullname=pagination,type=object,dst=pagination
+	fullname=items[].valueObj,type=string,example=值对象,dst=items[].valueObj
+	fullname=items[].type,type=string,example=image,dst=items[].type
+	fullname=items[].beginAt,type=string,example=2023-01-12 00:00:00,dst=items[].beginAt
+	fullname=items[].image,type=string,dst=items[].image
+	fullname=items[].summary,type=string,example=下单有豪礼,dst=items[].summary
+	fullname=items[].advertiserId,type=string,example=123,dst=items[].advertiserId
+	fullname=code,type=string,example=-,dst=code
+	fullname=items[].remark,type=string,example=营养早餐广告,dst=items[].remark
+`
+	l, err := jsonschemaline.ParseJsonschemaline(lineschema)
+	if err != nil {
+		panic(err)
+	}
+	jsonStr, err := l.Jsonschemaline2json()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(jsonStr)
+}
 
 func NewLineSchema() (l *jsonschemaline.Jsonschemaline) {
 	var jsonStr = `

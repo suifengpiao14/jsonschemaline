@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 )
 
@@ -311,6 +312,10 @@ func (l *Jsonschemaline) Jsonschemaline2json() (jsonStr string, err error) {
 			case "string":
 				value = ""
 			}
+		}
+		existsResult := gjson.Get(jsonStr, key)
+		if existsResult.IsArray() || existsResult.IsObject() {
+			continue
 		}
 
 		jsonStr, err = sjson.Set(jsonStr, key, value)
