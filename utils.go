@@ -19,8 +19,7 @@ func SnakeCase(name string) string {
 
 func Addslashes(str string) string {
 	var tmpRune []rune
-	strRune := []rune(str)
-	for _, ch := range strRune {
+	for _, ch := range str {
 		switch ch {
 		case []rune{'\\'}[0], []rune{'"'}[0], []rune{'\''}[0]:
 			tmpRune = append(tmpRune, []rune{'\\'}[0])
