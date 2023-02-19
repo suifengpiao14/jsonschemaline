@@ -317,12 +317,18 @@ func (l *Jsonschemaline) Jsonschemaline2json() (jsonStr string, err error) {
 		if existsResult.IsArray() || existsResult.IsObject() {
 			continue
 		}
+		str, ok := value.(string)
+		if ok {
+			str = Addslashes(str)
+			value = str
+		}
 
 		jsonStr, err = sjson.Set(jsonStr, key, value)
 		if err != nil {
 			return "", err
 		}
 	}
+	jsonStr = strings.ReplaceAll(jsonStr, `&#34;`, `\"`)
 	return jsonStr, nil
 }
 
