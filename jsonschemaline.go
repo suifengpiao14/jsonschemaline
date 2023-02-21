@@ -54,10 +54,91 @@ type JsonschemalineItem struct {
 	TagLineKVpair    TagLineKVpair `json:"-"`
 }
 
-func (i JsonschemalineItem) Json() (jsonStr string) {
-	b, _ := json.Marshal(i)
+func (jItem JsonschemalineItem) Json() (jsonStr string) {
+	b, _ := json.Marshal(jItem)
 	jsonStr = string(b)
 	return jsonStr
+}
+
+func (jItem JsonschemalineItem) jsonSchemaItem() (jsonStr string) {
+	copy := jItem
+	copy.Required = false // 转换成json schema时 required 单独处理
+	b, _ := json.Marshal(copy)
+	jsonStr = string(b)
+	return jsonStr
+}
+
+func (jItem JsonschemalineItem) ToJsonSchema() (jsonSchema string, err error) {
+	kvs := make([]KVpair, 0)
+	arrSuffix := "[]"
+	fullname := jItem.Fullname
+	if !strings.HasPrefix(fullname, arrSuffix) {
+		fullname = fmt.Sprintf(".%s", fullname) //增加顶级对象
+	}
+	arr := strings.Split(fullname, ".")
+	prefix := ""
+	l := len(arr)
+	for i := 0; i < l; i++ {
+		key := arr[i]
+		//处理数组
+		if strings.HasSuffix(key, arrSuffix) {
+			key = strings.TrimSuffix(key, arrSuffix)
+			prefix = fmt.Sprintf("%s.%s", prefix, key)
+			kv := KVpair{
+				Key:   fmt.Sprintf("%s.type", prefix),
+				Value: "array",
+			}
+			kvs = append(kvs, kv)
+			if i == l-1 {
+				kv = KVpair{
+					Key:   fmt.Sprintf("%s.items", prefix),
+					Value: jItem.jsonSchemaItem(),
+				}
+				continue
+			}
+			prefix = fmt.Sprintf("%s.items", prefix)
+			continue
+		}
+
+		//处理对象
+		if i == l-1 {
+			if jItem.Required {
+				parentKey := strings.TrimSuffix(prefix, ".object")
+				kv := KVpair{
+					Key:   fmt.Sprintf("%s.required.-1", parentKey),
+					Value: jItem.jsonSchemaItem(),
+				}
+				kvs = append(kvs, kv)
+			}
+			kv := KVpair{
+				Key:   fmt.Sprintf("%s.%s", prefix, key),
+				Value: jItem.jsonSchemaItem(),
+			}
+			kvs = append(kvs, kv)
+			continue
+		}
+
+		prefix = fmt.Sprintf("%s.%s", prefix, key)
+		kv := KVpair{
+			Key:   fmt.Sprintf("%s.type", prefix),
+			Value: "object",
+		}
+		kvs = append(kvs, kv)
+		prefix = fmt.Sprintf("%s.properties", prefix)
+	}
+	jsonSchema = ""
+	for _, kv := range kvs {
+		jsonSchema, err = sjson.SetRaw(jsonSchema, kv.Key, kv.Value)
+		if err != nil {
+			return "", err
+		}
+	}
+	return jsonSchema, nil
+}
+
+func Fullname2JsonschemaPath(fullname string, value string) (kvs []KVpair) {
+
+	return
 }
 
 var jsonschemalineItemOrder = []string{
@@ -493,7 +574,7 @@ func Json2lineSchema(jsonStr string) (out *Jsonschemaline, err error) {
 	return out, nil
 }
 
-//StandardJsonSchema 格式化相关数据，按标准json schema 输出，如required 字段，数据存储中，required字段为对象的一个属性，但是 标准jsonschema required 改成了数组
+// StandardJsonSchema 格式化相关数据，按标准json schema 输出，如required 字段，数据存储中，required字段为对象的一个属性，但是 标准jsonschema required 改成了数组
 func StandardJsonSchema(schemaJson string) (standardJsonSchema string) {
 
 	return standardJsonSchema
