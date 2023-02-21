@@ -1,9 +1,11 @@
 package jsonschemaline_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/suifengpiao14/jsonschemaline"
 	"github.com/tidwall/gjson"
@@ -244,8 +246,12 @@ func TestGjsonPath2(t *testing.T) {
 }
 
 func TestJsonSchema(t *testing.T) {
-	l := NewLineSchema()
-	b, err := l.JsonSchema()
+	str := `{"Meta":{"id":"form","version":"http://json-schema.org/draft-07/schema#","direction":"in"},"Items":[{"comment":"广告标题","type":"string","required":"true","description":"广告标题","example":"新年豪礼","dst":"title","fullname":"title"},{"comment":"广告主","type":"string","required":"true","description":"广告主","example":"123","dst":"advertiserId","fullname":"advertiserId"},{"comment":"可以投放开始时间","type":"string","required":"true","description":"可以投放开始时间","example":"2023-01-12 00:00:00","dst":"beginAt","fullname":"beginAt"},{"comment":"投放结束时间","type":"string","required":"true","description":"投放结束时间","example":"2023-01-30 00:00:00","dst":"endAt","fullname":"endAt"},{"comment":"页索引,0开始","type":"string","required":"true","description":"页索引,0开始","default":"0","dst":"index","fullname":"index"},{"comment":"每页数量","type":"string","required":"true","description":"每页数量","default":"10","dst":"size","fullname":"size"},{"comment":"文件格式","type":"string","required":"true","description":"文件格式","default":"application/json","dst":"content-type","fullname":"content-type"},{"comment":"访问服务的备案id","type":"string","required":"true","description":"访问服务的备案id","dst":"appid","fullname":"appid"},{"comment":"签名,外网访问需开启签名","type":"string","required":"true","description":"签名,外网访问需开启签名","dst":"signature","fullname":"signature"}]}`
+	lineSchema := jsonschemaline.Jsonschemaline{}
+	json.Unmarshal([]byte(str), &lineSchema)
+	b, err := lineSchema.JsonSchema()
 	require.NoError(t, err)
-	fmt.Println(string(b))
+	result := string(b)
+	except := `{"$schema":"http://json-schema.org/draft-07/schema#","type":"object","properties":{"title":{"comment":"广告标题","type":"string","required":"true","description":"广告标题","example":"新年豪礼","dst":"title","fullname":"title"},"advertiserId":{"comment":"广告主","type":"string","required":"true","description":"广告主","example":"123","dst":"advertiserId","fullname":"advertiserId"},"beginAt":{"comment":"可以投放开始时间","type":"string","required":"true","description":"可以投放开始时间","example":"2023-01-12 00:00:00","dst":"beginAt","fullname":"beginAt"},"endAt":{"comment":"投放结束时间","type":"string","required":"true","description":"投放结束时间","example":"2023-01-30 00:00:00","dst":"endAt","fullname":"endAt"},"index":{"comment":"页索引,0开始","type":"string","required":"true","description":"页索引,0开始","default":"0","dst":"index","fullname":"index"},"size":{"comment":"每页数量","type":"string","required":"true","description":"每页数量","default":"10","dst":"size","fullname":"size"},"content-type":{"comment":"文件格式","type":"string","required":"true","description":"文件格式","default":"application/json","dst":"content-type","fullname":"content-type"},"appid":{"comment":"访问服务的备案id","type":"string","required":"true","description":"访问服务的备案id","dst":"appid","fullname":"appid"},"signature":{"comment":"签名,外网访问需开启签名","type":"string","required":"true","description":"签名,外网访问需开启签名","dst":"signature","fullname":"signature"}}}`
+	assert.Equal(t, except, result)
 }

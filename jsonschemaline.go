@@ -493,6 +493,12 @@ func Json2lineSchema(jsonStr string) (out *Jsonschemaline, err error) {
 	return out, nil
 }
 
+//StandardJsonSchema 格式化相关数据，按标准json schema 输出，如required 字段，数据存储中，required字段为对象的一个属性，但是 标准jsonschema required 改成了数组
+func StandardJsonSchema(schemaJson string) (standardJsonSchema string) {
+
+	return standardJsonSchema
+}
+
 func parseOneJsonKey2Line(rv reflect.Value, fullname string) (items []*JsonschemalineItem) {
 	items = make([]*JsonschemalineItem, 0)
 	if rv.IsZero() {
