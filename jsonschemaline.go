@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strings"
 
+	jsonpatch "github.com/evanphx/json-patch/v5"
 	"github.com/pkg/errors"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
@@ -51,6 +52,12 @@ type JsonschemalineItem struct {
 	Dst              string        `json:"dst,omitempty"`
 	Fullname         string        `json:"fullname"`
 	TagLineKVpair    TagLineKVpair `json:"-"`
+}
+
+func (i JsonschemalineItem) Json() (jsonStr string) {
+	b, _ := json.Marshal(i)
+	jsonStr = string(b)
+	return jsonStr
 }
 
 var jsonschemalineItemOrder = []string{
@@ -286,11 +293,49 @@ func ParseJsonschemalineRaw(jsonschemalineRaw string) (meta *Meta, item *Jsonsch
 }
 
 func (l *Jsonschemaline) JsonSchema() (jsonschemaByte []byte, err error) {
-	jsonSchema := new(Schema)
-	jsonSchema.Raw2Schema(*l)
-	jsonschemaByte, err = jsonSchema.MarshalJSON()
+
+	jsonArr := make([]string, 0)
+	arrSuffix := "[]"
+	for _, item := range l.Items {
+		subJson := item.Json()
+		fullname := item.Fullname
+		if !strings.HasPrefix(fullname, arrSuffix) {
+			fullname = fmt.Sprintf(".%s", fullname) //增加顶级对象
+		}
+		arr := strings.Split(fullname, ".")
+		len := len(arr)
+		for j := len - 1; j > -1; j-- {
+			key := arr[j]
+			if strings.HasSuffix(key, arrSuffix) {
+				key = strings.TrimSuffix(key, arrSuffix)
+				if j == len-1 {
+					subJson = fmt.Sprintf(`{"%s":{"type":"array","items":%s}}`, key, subJson)
+				} else {
+					subJson = fmt.Sprintf(`{"%s":{"type":"array","items":{"type":"object","properties":%s}}}`, key, subJson)
+				}
+				continue
+			}
+			if j == len-1 {
+				subJson = fmt.Sprintf(`{"%s":%s}`, key, subJson)
+			} else {
+				subJson = fmt.Sprintf(`{"%s":{"type":"object","properties":%s}}`, key, subJson)
+			}
+		}
+		jsonArr = append(jsonArr, subJson)
+	}
+	original := []byte("{}")
+	for _, subJson := range jsonArr {
+		original, err = jsonpatch.MergePatch(original, []byte(subJson))
+		if err != nil {
+			return nil, err
+		}
+	}
+	bLen := len(original)
+	jsonschemaByte = original[4 : bLen-1] // 切除最顶层{"":....} 内容
+	wrap := []byte(`{"$schema":"http://json-schema.org/draft-07/schema#"}`)
+	jsonschemaByte, err = jsonpatch.MergePatch(wrap, jsonschemaByte)
 	if err != nil {
-		return
+		return nil, err
 	}
 	return jsonschemaByte, nil
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"github.com/suifengpiao14/jsonschemaline"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
@@ -147,7 +148,7 @@ func TestJsonschemaline2json3(t *testing.T) {
 
 func NewLineSchema() (l *jsonschemaline.Jsonschemaline) {
 	var jsonStr = `
-		{
+		[{
 			"config":{
 				"id":"1",
 				"status":"2",
@@ -157,11 +158,12 @@ func NewLineSchema() (l *jsonschemaline.Jsonschemaline) {
 				"operateName":"彭政",
 				"storeId":"1",
 				"storeName":"门店名称",
+				"ids":["1","2"],
 				"array":[
 					{"id":"2","name":"ok"}
 					]
 			}
-		}
+		}]
 	`
 	lineschema, err := jsonschemaline.Json2lineSchema(jsonStr)
 	if err != nil {
@@ -239,4 +241,11 @@ func TestGjsonPath2(t *testing.T) {
 	jsonStr := `{"input":{"pageIndex":"0","pageSize":"20"}}`
 	out := gjson.Get(jsonStr, gjsonPath).String()
 	fmt.Println(out)
+}
+
+func TestJsonSchema(t *testing.T) {
+	l := NewLineSchema()
+	b, err := l.JsonSchema()
+	require.NoError(t, err)
+	fmt.Println(string(b))
 }
