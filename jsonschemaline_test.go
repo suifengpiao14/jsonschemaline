@@ -85,16 +85,16 @@ func TestSjson(t *testing.T) {
 	}
 	fmt.Println(out)
 }
-func TestJsonschemaline2json(t *testing.T) {
+func TestJsonExample(t *testing.T) {
 
 	l := NewLineSchema()
-	jsonStr, err := l.Jsonschemaline2json()
+	jsonStr, err := l.JsonExample()
 	if err != nil {
 		panic(err)
 	}
 	fmt.Println(jsonStr)
 }
-func TestJsonschemaline2json2(t *testing.T) {
+func TestJsonExample2(t *testing.T) {
 	lineschema := `
 version=http://json-schema.org/draft-07/schema#,direction=out,id=example
 fullname=index,type=string,dst=index
@@ -110,11 +110,13 @@ fullname=size,type=string,example=10,dst=size
 	if err != nil {
 		panic(err)
 	}
-	jsonStr, err := l.Jsonschemaline2json()
+	jsonStr, err := l.JsonExample()
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println(jsonStr)
+	expected := `{"index":"","position":"","httpStatus":"","total":"60","type":"","description":"","name":"","size":"10"}`
+	ok := jsonpatch.Equal([]byte(expected), []byte(jsonStr))
+	assert.Equal(t, true, ok)
 }
 func TestJsonschemaline2json3(t *testing.T) {
 	lineschema := `

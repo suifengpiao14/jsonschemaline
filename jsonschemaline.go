@@ -383,8 +383,8 @@ func (l *Jsonschemaline) JsonSchema() (jsonschemaByte []byte, err error) {
 	}
 	return jsonschemaByte, nil
 }
-func (l *Jsonschemaline) Jsonschemaline2json() (jsonStr string, err error) {
-	jsonStr = ""
+func (l *Jsonschemaline) JsonExample() (jsonExample string, err error) {
+	jsonExample = ""
 	for _, item := range l.Items {
 		key := strings.ReplaceAll(item.Fullname, "[]", ".0")
 		var value interface{}
@@ -402,16 +402,21 @@ func (l *Jsonschemaline) Jsonschemaline2json() (jsonStr string, err error) {
 				value = ""
 			}
 		}
-		existsResult := gjson.Get(jsonStr, key)
+		existsResult := gjson.Get(jsonExample, key)
 		if existsResult.IsArray() || existsResult.IsObject() {
 			continue
 		}
-		jsonStr, err = sjson.Set(jsonStr, key, value)
+		jsonExample, err = sjson.Set(jsonExample, key, value)
 		if err != nil {
 			return "", err
 		}
 	}
-	return jsonStr, nil
+	return jsonExample, nil
+}
+
+// Deprecated see JsonExample
+func (l *Jsonschemaline) Jsonschemaline2json() (jsonStr string, err error) {
+	return l.JsonExample()
 }
 
 func (l *Jsonschemaline) GjsonPath(formatPath func(format string, src string, item *JsonschemalineItem) (path string)) (gjsonPath string) {
