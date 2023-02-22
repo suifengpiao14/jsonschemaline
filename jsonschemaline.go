@@ -50,7 +50,7 @@ type JsonschemalineItem struct {
 	Example          string       `json:"example,omitempty"`           // section 9.5
 	Src              string       `json:"src,omitempty"`
 	Dst              string       `json:"dst,omitempty"`
-	Fullname         string       `json:"fullname"`
+	Fullname         string       `json:"fullname,omitempty"`
 	TagLineKVpair    kvstruct.KVS `json:"-"`
 }
 
@@ -63,6 +63,10 @@ func (jItem JsonschemalineItem) Json() (jsonStr string) {
 func (jItem JsonschemalineItem) jsonSchemaItem() (jsonStr string) {
 	copy := jItem
 	copy.Required = false // 转换成json schema时 required 单独处理
+	// 这部分字段隐藏
+	copy.Fullname = ""
+	copy.Dst = ""
+	copy.Src = ""
 	b, _ := json.Marshal(copy)
 	jsonStr = string(b)
 	return jsonStr
