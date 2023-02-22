@@ -13,13 +13,13 @@ import (
 	"net"
 	"net/url"
 	"reflect"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/iancoleman/orderedmap"
 	"github.com/pkg/errors"
+	"github.com/suifengpiao14/kvstruct"
 )
 
 const EOF = "\n"
@@ -717,7 +717,7 @@ func OneRawLineSchema(schema *Schema, required []string) (oneRaw string, err err
 		}
 
 	}
-	lineKV := make(TagLineKVpair, 0)
+	lineKV := make(kvstruct.KVS, 0)
 	requiredMap := make(map[string]string)
 	for _, k := range required {
 		requiredMap[k] = k
@@ -736,7 +736,7 @@ func OneRawLineSchema(schema *Schema, required []string) (oneRaw string, err err
 			case reflect.Float64:
 				val := value.Float()
 				if val > 0 {
-					kv := KVpair{
+					kv := kvstruct.KV{
 						Key:   name,
 						Value: fmt.Sprintf("%f", val),
 					}
@@ -746,7 +746,7 @@ func OneRawLineSchema(schema *Schema, required []string) (oneRaw string, err err
 			case reflect.Int:
 				val := value.Int()
 				if val > 0 {
-					kv := KVpair{
+					kv := kvstruct.KV{
 						Key:   name,
 						Value: fmt.Sprintf("%d", val),
 					}
@@ -756,7 +756,7 @@ func OneRawLineSchema(schema *Schema, required []string) (oneRaw string, err err
 			case reflect.Bool:
 				val := value.Bool()
 				if val {
-					kv := KVpair{
+					kv := kvstruct.KV{
 						Key:   name,
 						Value: "true",
 					}
@@ -777,13 +777,13 @@ func OneRawLineSchema(schema *Schema, required []string) (oneRaw string, err err
 					}
 					_, ok := requiredMap[propName]
 					if ok {
-						kv := KVpair{
+						kv := kvstruct.KV{
 							Key: "required",
 						}
 						lineKV = append(lineKV, kv)
 					}
 				}
-				kv := KVpair{
+				kv := kvstruct.KV{
 					Key:   name,
 					Value: val,
 				}
@@ -803,7 +803,7 @@ func OneRawLineSchema(schema *Schema, required []string) (oneRaw string, err err
 				if val == "" {
 					continue
 				}
-				kv := KVpair{
+				kv := kvstruct.KV{
 					Key:   name,
 					Value: val,
 				}
@@ -812,7 +812,7 @@ func OneRawLineSchema(schema *Schema, required []string) (oneRaw string, err err
 		}
 
 	}
-	sort.Sort(lineKV)
+	lineKV = lineKV.Order(jsonschemalineItemOrder)
 	var w bytes.Buffer
 	for _, kv := range lineKV {
 		var str string
@@ -828,8 +828,8 @@ func OneRawLineSchema(schema *Schema, required []string) (oneRaw string, err err
 	return
 }
 
-func GetMetaLine(tagLineKVpairs []TagLineKVpair) (tagLineKVpair *TagLineKVpair, ok bool) {
-	tagLineKVpair = &TagLineKVpair{}
+func GetMetaLine(tagLineKVpairs []kvstruct.KVS) (tagLineKVpair *kvstruct.KVS, ok bool) {
+	tagLineKVpair = &kvstruct.KVS{}
 	for _, tagLineKVpair := range tagLineKVpairs {
 		ok = IsMetaLine(tagLineKVpair)
 		if ok {
@@ -839,20 +839,20 @@ func GetMetaLine(tagLineKVpairs []TagLineKVpair) (tagLineKVpair *TagLineKVpair, 
 	return nil, false
 }
 
-func SplitLineSchema(onelineSchema string) []KVpair {
+func SplitLineSchema(onelineSchema string) kvstruct.KVS {
 	onelineSchema = PretreatJsonschemalineRaw(onelineSchema)
 	kvStrArr := SplitOnUnescapedCommas(onelineSchema)
-	out := make([]KVpair, 0)
+	out := make(kvstruct.KVS, 0)
 	for _, kvStr := range kvStrArr {
 		kvPair := strings.SplitN(kvStr, "=", 2)
 		if len(kvPair) == 2 {
 			k, v := strings.TrimSpace(kvPair[0]), strings.TrimSpace(kvPair[1])
-			out = append(out, KVpair{k, v})
+			out = append(out, kvstruct.KV{Key: k, Value: v})
 		}
 	}
 	return out
 }
-func ParseMeta(metaLineTags []KVpair) (meta Meta) {
+func ParseMeta(metaLineTags kvstruct.KVS) (meta Meta) {
 	meta = Meta{}
 	for _, kvPair := range metaLineTags {
 		switch kvPair.Key {
@@ -938,7 +938,7 @@ func (t *Schema) GetByName(name string) *Schema {
 	return newSchema
 }
 
-func (t *Schema) structKeywordsFromRaw(tags []KVpair, parent *Schema, propertyName string) {
+func (t *Schema) structKeywordsFromRaw(tags kvstruct.KVS, parent *Schema, propertyName string) {
 	t.Description = ""
 	t.commonKeywords(tags)
 	t.genericKeywords(tags, parent, propertyName)
@@ -966,7 +966,7 @@ func (t *Schema) structKeywordsFromRaw(tags []KVpair, parent *Schema, propertyNa
 }
 
 // read struct tags for generic keyworks
-func (t *Schema) genericKeywords(tags []KVpair, parent *Schema, propertyName string) {
+func (t *Schema) genericKeywords(tags kvstruct.KVS, parent *Schema, propertyName string) {
 	typ := "string"
 	for _, kvPair := range tags {
 		if kvPair.Key == "type" {
@@ -1027,7 +1027,7 @@ func (t *Schema) genericKeywords(tags []KVpair, parent *Schema, propertyName str
 }
 
 // read struct tags for boolean type keyworks
-func (t *Schema) booleanKeywords(tags []KVpair) {
+func (t *Schema) booleanKeywords(tags kvstruct.KVS) {
 	for _, kvPair := range tags {
 		if kvPair.Key == "default" {
 			if kvPair.Value == "true" {
@@ -1040,7 +1040,7 @@ func (t *Schema) booleanKeywords(tags []KVpair) {
 }
 
 // read struct tags for string type keyworks
-func (t *Schema) stringKeywords(tags []KVpair) {
+func (t *Schema) stringKeywords(tags kvstruct.KVS) {
 	for _, kvPair := range tags {
 		switch kvPair.Key {
 		case "minLength":
@@ -1072,7 +1072,7 @@ func (t *Schema) stringKeywords(tags []KVpair) {
 		}
 	}
 } // read struct tags for string type keyworks
-func (t *Schema) commonKeywords(tags []KVpair) {
+func (t *Schema) commonKeywords(tags kvstruct.KVS) {
 	for _, kvPair := range tags {
 		name, val := kvPair.Key, kvPair.Value
 		switch name {
@@ -1085,7 +1085,7 @@ func (t *Schema) commonKeywords(tags []KVpair) {
 }
 
 // read struct tags for numberic type keyworks
-func (t *Schema) numbericKeywords(tags []KVpair) {
+func (t *Schema) numbericKeywords(tags kvstruct.KVS) {
 	for _, kvPair := range tags {
 		name, val := kvPair.Key, kvPair.Value
 		switch name {
@@ -1132,7 +1132,7 @@ func (t *Schema) numbericKeywords(tags []KVpair) {
 // }
 
 // read struct tags for array type keyworks
-func (t *Schema) arrayKeywords(tags []KVpair) {
+func (t *Schema) arrayKeywords(tags kvstruct.KVS) {
 	var defaultValues []interface{}
 	for _, kvPair := range tags {
 		name, val := kvPair.Key, kvPair.Value
@@ -1165,7 +1165,7 @@ func (t *Schema) arrayKeywords(tags []KVpair) {
 	}
 }
 
-func (t *Schema) extraKeywords(tags []KVpair) {
+func (t *Schema) extraKeywords(tags kvstruct.KVS) {
 	for _, kvPair := range tags {
 		t.setExtra(kvPair.Key, kvPair.Value)
 	}
@@ -1207,7 +1207,7 @@ func requiredFromJSONTags(tags []string) bool {
 	return true
 }
 
-func requiredFromJSONSchemaTags(tags []KVpair) bool {
+func requiredFromJSONSchemaTags(tags kvstruct.KVS) bool {
 	if ignoredByJSONSchemaTags(tags) {
 		return false
 	}
@@ -1219,7 +1219,7 @@ func requiredFromJSONSchemaTags(tags []KVpair) bool {
 	return false
 }
 
-func nullableFromJSONSchemaTags(tags []KVpair) bool {
+func nullableFromJSONSchemaTags(tags kvstruct.KVS) bool {
 	if ignoredByJSONSchemaTags(tags) {
 		return false
 	}
@@ -1244,7 +1244,7 @@ func ignoredByJSONTags(tags []string) bool {
 	return tags[0] == "-"
 }
 
-func ignoredByJSONSchemaTags(tags []KVpair) bool {
+func ignoredByJSONSchemaTags(tags kvstruct.KVS) bool {
 	return tags[0].Key == "-"
 }
 
@@ -1368,10 +1368,10 @@ func (r *Reflector) typeName(t reflect.Type) string {
 	return t.Name()
 }
 
-func SplitMultilineSchema(lineSchema string) []TagLineKVpair {
+func SplitMultilineSchema(lineSchema string) []kvstruct.KVS {
 	lineSchema = strings.TrimSpace(strings.ReplaceAll(lineSchema, "\r\n", EOF))
 	arr := strings.Split(lineSchema, EOF)
-	out := make([]TagLineKVpair, 0)
+	out := make([]kvstruct.KVS, 0)
 	for _, raw := range arr {
 		raw = strings.TrimSpace(raw)
 		if raw == "" {

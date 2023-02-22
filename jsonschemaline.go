@@ -10,6 +10,7 @@ import (
 
 	jsonpatch "github.com/evanphx/json-patch/v5"
 	"github.com/pkg/errors"
+	"github.com/suifengpiao14/kvstruct"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 )
@@ -39,19 +40,19 @@ type JsonschemalineItem struct {
 	// RFC draft-bhutton-json-schema-validation-00, section 7
 	Format string `json:"format,omitempty"`
 	// RFC draft-bhutton-json-schema-validation-00, section 8
-	ContentEncoding  string        `json:"contentEncoding,omitempty"`   // section 8.3
-	ContentMediaType string        `json:"contentMediaType,omitempty"`  // section 8.4
-	Title            string        `json:"title,omitempty"`             // section 9.1
-	Description      string        `json:"description,omitempty"`       // section 9.1
-	Default          string        `json:"default,omitempty"`           // section 9.2
-	Deprecated       bool          `json:"deprecated,omitempty,string"` // section 9.3
-	ReadOnly         bool          `json:"readOnly,omitempty,string"`   // section 9.4
-	WriteOnly        bool          `json:"writeOnly,omitempty,string"`  // section 9.4
-	Example          string        `json:"example,omitempty"`           // section 9.5
-	Src              string        `json:"src,omitempty"`
-	Dst              string        `json:"dst,omitempty"`
-	Fullname         string        `json:"fullname"`
-	TagLineKVpair    TagLineKVpair `json:"-"`
+	ContentEncoding  string       `json:"contentEncoding,omitempty"`   // section 8.3
+	ContentMediaType string       `json:"contentMediaType,omitempty"`  // section 8.4
+	Title            string       `json:"title,omitempty"`             // section 9.1
+	Description      string       `json:"description,omitempty"`       // section 9.1
+	Default          string       `json:"default,omitempty"`           // section 9.2
+	Deprecated       bool         `json:"deprecated,omitempty,string"` // section 9.3
+	ReadOnly         bool         `json:"readOnly,omitempty,string"`   // section 9.4
+	WriteOnly        bool         `json:"writeOnly,omitempty,string"`  // section 9.4
+	Example          string       `json:"example,omitempty"`           // section 9.5
+	Src              string       `json:"src,omitempty"`
+	Dst              string       `json:"dst,omitempty"`
+	Fullname         string       `json:"fullname"`
+	TagLineKVpair    kvstruct.KVS `json:"-"`
 }
 
 func (jItem JsonschemalineItem) Json() (jsonStr string) {
@@ -68,14 +69,19 @@ func (jItem JsonschemalineItem) jsonSchemaItem() (jsonStr string) {
 	return jsonStr
 }
 
-func (jItem JsonschemalineItem) ToJsonSchema() (jsonSchema string, err error) {
-	kvs := make([]KVpair, 0)
+func (jItem JsonschemalineItem) ToJsonSchemaKVpairs() (kvs kvstruct.KVS, err error) {
+	kvs = make(kvstruct.KVS, 0)
 	arrSuffix := "[]"
-	fullname := jItem.Fullname
+	fullname := strings.Trim(jItem.Fullname, ".")
 	if !strings.HasPrefix(fullname, arrSuffix) {
 		fullname = fmt.Sprintf(".%s", fullname) //增加顶级对象
 	}
 	arr := strings.Split(fullname, ".")
+	kv := kvstruct.KV{
+		Key:   `$schema`,
+		Value: `http://json-schema.org/draft-07/schema#`,
+	}
+	kvs = append(kvs, kv)
 	prefix := ""
 	l := len(arr)
 	for i := 0; i < l; i++ {
@@ -83,62 +89,56 @@ func (jItem JsonschemalineItem) ToJsonSchema() (jsonSchema string, err error) {
 		//处理数组
 		if strings.HasSuffix(key, arrSuffix) {
 			key = strings.TrimSuffix(key, arrSuffix)
-			prefix = fmt.Sprintf("%s.%s", prefix, key)
-			kv := KVpair{
-				Key:   fmt.Sprintf("%s.type", prefix),
+			prefix = strings.Trim(fmt.Sprintf("%s.%s", prefix, key), ".")
+			kv := kvstruct.KV{
+				Key:   strings.Trim(fmt.Sprintf("%s.type", prefix), "."),
 				Value: "array",
 			}
 			kvs = append(kvs, kv)
 			if i == l-1 {
-				kv = KVpair{
-					Key:   fmt.Sprintf("%s.items", prefix),
+				kv = kvstruct.KV{
+					Key:   strings.Trim(fmt.Sprintf("%s.items", prefix), "."),
 					Value: jItem.jsonSchemaItem(),
 				}
 				continue
 			}
 			prefix = fmt.Sprintf("%s.items", prefix)
+			kv = kvstruct.KV{
+				Key:   strings.Trim(fmt.Sprintf("%s.type", prefix), "."),
+				Value: "object",
+			}
+			kvs = append(kvs, kv)
+			prefix = fmt.Sprintf("%s.properties", prefix)
 			continue
 		}
 
 		//处理对象
 		if i == l-1 {
 			if jItem.Required {
-				parentKey := strings.TrimSuffix(prefix, ".object")
-				kv := KVpair{
-					Key:   fmt.Sprintf("%s.required.-1", parentKey),
-					Value: jItem.jsonSchemaItem(),
+				parentKey := strings.TrimSuffix(prefix, ".properties")
+				kv := kvstruct.KV{
+					Key:   strings.Trim(fmt.Sprintf("%s.required.-1", parentKey), "."),
+					Value: key,
 				}
 				kvs = append(kvs, kv)
 			}
-			kv := KVpair{
-				Key:   fmt.Sprintf("%s.%s", prefix, key),
+			kv := kvstruct.KV{
+				Key:   strings.Trim(fmt.Sprintf("%s.%s", prefix, key), "."),
 				Value: jItem.jsonSchemaItem(),
 			}
 			kvs = append(kvs, kv)
 			continue
 		}
 
-		prefix = fmt.Sprintf("%s.%s", prefix, key)
-		kv := KVpair{
-			Key:   fmt.Sprintf("%s.type", prefix),
+		prefix = strings.Trim(fmt.Sprintf("%s.%s", prefix, key), ".")
+		kv := kvstruct.KV{
+			Key:   strings.Trim(fmt.Sprintf("%s.type", prefix), "."),
 			Value: "object",
 		}
 		kvs = append(kvs, kv)
 		prefix = fmt.Sprintf("%s.properties", prefix)
 	}
-	jsonSchema = ""
-	for _, kv := range kvs {
-		jsonSchema, err = sjson.SetRaw(jsonSchema, kv.Key, kv.Value)
-		if err != nil {
-			return "", err
-		}
-	}
-	return jsonSchema, nil
-}
-
-func Fullname2JsonschemaPath(fullname string, value string) (kvs []KVpair) {
-
-	return
+	return kvs, nil
 }
 
 var jsonschemalineItemOrder = []string{
@@ -163,7 +163,7 @@ type Meta struct {
 	Direction string `json:"direction"`
 }
 
-func IsMetaLine(lineTags TagLineKVpair) bool {
+func IsMetaLine(lineTags kvstruct.KVS) bool {
 	hasFullname, hasId := false, false
 	for _, kvPair := range lineTags {
 		switch kvPair.Key {
@@ -226,27 +226,6 @@ func (l *Jsonschemaline) String() string {
 	return out
 }
 
-type KVpair struct {
-	Key   string
-	Value string
-}
-
-func (kvPair KVpair) Order() int {
-
-	for k, v := range jsonschemalineItemOrder {
-		if kvPair.Key == v {
-			return k
-		}
-	}
-	return 0
-}
-
-type TagLineKVpair []KVpair
-
-func (a TagLineKVpair) Len() int           { return len(a) }
-func (a TagLineKVpair) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a TagLineKVpair) Less(i, j int) bool { return a[i].Order() < a[j].Order() }
-
 // ParseMultiJsonSchemaline 解析多个 jsonschemaline
 func ParseMultiJsonSchemaline(jsonschemalineBlocks string) (jsonschemalines []*Jsonschemaline, err error) {
 	jsonschemalineBlocks = strings.TrimSpace(strings.ReplaceAll(jsonschemalineBlocks, "\r\n", EOF))
@@ -305,7 +284,7 @@ func ParseJsonschemalineRaw(jsonschemalineRaw string) (meta *Meta, item *Jsonsch
 	kvMap := make(map[string]string)
 	enumList := make([]string, 0)
 	constList := make([]string, 0)
-	tagLineKVPair := make(TagLineKVpair, 0)
+	tagLineKVPair := make(kvstruct.KVS, 0)
 	for _, kvStr := range kvStrArr {
 		kvPair := strings.SplitN(kvStr, "=", 2)
 		if len(kvPair) == 2 {
@@ -318,7 +297,7 @@ func ParseJsonschemalineRaw(jsonschemalineRaw string) (meta *Meta, item *Jsonsch
 			default:
 				kvMap[k] = v
 			}
-			tagLineKVPair = append(tagLineKVPair, KVpair{Key: k, Value: v})
+			tagLineKVPair = append(tagLineKVPair, kvstruct.KV{Key: k, Value: v})
 		}
 	}
 	if len(enumList) > 0 {
@@ -572,12 +551,6 @@ func Json2lineSchema(jsonStr string) (out *Jsonschemaline, err error) {
 	rv := reflect.Indirect(reflect.ValueOf(input))
 	out.Items = parseOneJsonKey2Line(rv, "")
 	return out, nil
-}
-
-// StandardJsonSchema 格式化相关数据，按标准json schema 输出，如required 字段，数据存储中，required字段为对象的一个属性，但是 标准jsonschema required 改成了数组
-func StandardJsonSchema(schemaJson string) (standardJsonSchema string) {
-
-	return standardJsonSchema
 }
 
 func parseOneJsonKey2Line(rv reflect.Value, fullname string) (items []*JsonschemalineItem) {
