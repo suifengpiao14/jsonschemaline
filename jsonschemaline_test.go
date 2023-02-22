@@ -272,7 +272,7 @@ func TestToJsonSchemaKVS(t *testing.T) {
 		kvs, err := item.ToJsonSchemaKVS()
 		require.NoError(t, err)
 		schema := kvs.Json()
-		expected := `{"$schema":"http://json-schema.org/draft-07/schema#","type":"object","properties":{"_param":{"type":"object","properties":{"config":{"type":"object","required":["id"],"properties":{"id":{"type":"string","format":"number","description":"ID","fullname":"._param.config.id"}}}}}}}`
+		expected := `{"$schema":"http://json-schema.org/draft-07/schema#","type":"object","properties":{"_param":{"type":"object","properties":{"config":{"type":"object","required":["id"],"properties":{"id":{"type":"string","format":"number","description":"ID"}}}}}}}`
 		ok := jsonpatch.Equal([]byte(expected), []byte(schema))
 		assert.Equal(t, true, ok)
 	})
@@ -288,7 +288,7 @@ func TestToJsonSchemaKVS(t *testing.T) {
 		kvs, err := item.ToJsonSchemaKVS()
 		require.NoError(t, err)
 		schema := kvs.Json()
-		expected := `{"$schema":"http://json-schema.org/draft-07/schema#","type":"array","items":{"type":"object","properties":{"_param":{"type":"object","properties":{"config":{"type":"object","required":["id"],"properties":{"id":{"type":"string","format":"number","description":"ID","fullname":"[]._param.config.id"}}}}}}}}`
+		expected := `{"$schema":"http://json-schema.org/draft-07/schema#","type":"array","items":{"type":"object","properties":{"_param":{"type":"object","properties":{"config":{"type":"object","required":["id"],"properties":{"id":{"type":"string","format":"number","description":"ID"}}}}}}}}`
 		ok := jsonpatch.Equal([]byte(expected), []byte(schema))
 		assert.Equal(t, true, ok)
 	})
@@ -303,7 +303,7 @@ func TestToJsonSchemaKVS(t *testing.T) {
 		kvs, err := item.ToJsonSchemaKVS()
 		require.NoError(t, err)
 		schema := kvs.Json()
-		expected := `{"$schema":"http://json-schema.org/draft-07/schema#","type":"object","properties":{"_param":{"type":"object","properties":{"config":{"type":"array","items":{"type":"object","required":["id"],"properties":{"id":{"type":"string","format":"number","description":"ID","fullname":"_param.config[].id"}}}}}}}}`
+		expected := `{"$schema":"http://json-schema.org/draft-07/schema#","type":"object","properties":{"_param":{"type":"object","properties":{"config":{"type":"array","items":{"type":"object","required":["id"],"properties":{"id":{"type":"string","format":"number","description":"ID"}}}}}}}}`
 		ok := jsonpatch.Equal([]byte(expected), []byte(schema))
 		assert.Equal(t, true, ok)
 	})
