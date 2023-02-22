@@ -252,12 +252,13 @@ func TestJsonSchema(t *testing.T) {
 	json.Unmarshal([]byte(str), &lineSchema)
 	b, err := lineSchema.JsonSchema()
 	require.NoError(t, err)
-	result := string(b)
-	except := `{"$schema":"http://json-schema.org/draft-07/schema#","type":"object","properties":{"title":{"comment":"广告标题","type":"string","required":"true","description":"广告标题","example":"新年豪礼","dst":"title","fullname":"title"},"advertiserId":{"comment":"广告主","type":"string","required":"true","description":"广告主","example":"123","dst":"advertiserId","fullname":"advertiserId"},"beginAt":{"comment":"可以投放开始时间","type":"string","required":"true","description":"可以投放开始时间","example":"2023-01-12 00:00:00","dst":"beginAt","fullname":"beginAt"},"endAt":{"comment":"投放结束时间","type":"string","required":"true","description":"投放结束时间","example":"2023-01-30 00:00:00","dst":"endAt","fullname":"endAt"},"index":{"comment":"页索引,0开始","type":"string","required":"true","description":"页索引,0开始","default":"0","dst":"index","fullname":"index"},"size":{"comment":"每页数量","type":"string","required":"true","description":"每页数量","default":"10","dst":"size","fullname":"size"},"content-type":{"comment":"文件格式","type":"string","required":"true","description":"文件格式","default":"application/json","dst":"content-type","fullname":"content-type"},"appid":{"comment":"访问服务的备案id","type":"string","required":"true","description":"访问服务的备案id","dst":"appid","fullname":"appid"},"signature":{"comment":"签名,外网访问需开启签名","type":"string","required":"true","description":"签名,外网访问需开启签名","dst":"signature","fullname":"signature"}}}`
-	assert.Equal(t, except, result)
+	schema := string(b)
+	expected := `{"$schema":"http://json-schema.org/draft-07/schema#","type":"object","required":["title","advertiserId","beginAt","endAt","index","size","content-type","appid","signature"],"properties":{"title":{"comment":"广告标题","type":"string","description":"广告标题","example":"新年豪礼","dst":"title","fullname":"title"},"advertiserId":{"comment":"广告主","type":"string","description":"广告主","example":"123","dst":"advertiserId","fullname":"advertiserId"},"beginAt":{"comment":"可以投放开始时间","type":"string","description":"可以投放开始时间","example":"2023-01-12 00:00:00","dst":"beginAt","fullname":"beginAt"},"endAt":{"comment":"投放结束时间","type":"string","description":"投放结束时间","example":"2023-01-30 00:00:00","dst":"endAt","fullname":"endAt"},"index":{"comment":"页索引,0开始","type":"string","description":"页索引,0开始","default":"0","dst":"index","fullname":"index"},"size":{"comment":"每页数量","type":"string","description":"每页数量","default":"10","dst":"size","fullname":"size"},"content-type":{"comment":"文件格式","type":"string","description":"文件格式","default":"application/json","dst":"content-type","fullname":"content-type"},"appid":{"comment":"访问服务的备案id","type":"string","description":"访问服务的备案id","dst":"appid","fullname":"appid"},"signature":{"comment":"签名,外网访问需开启签名","type":"string","description":"签名,外网访问需开启签名","dst":"signature","fullname":"signature"}}}`
+	ok := jsonpatch.Equal([]byte(expected), []byte(schema))
+	assert.Equal(t, true, ok)
 }
 
-func TestToJsonSchemaKVpairs(t *testing.T) {
+func TestToJsonSchemaKVS(t *testing.T) {
 	t.Run("object", func(t *testing.T) {
 		item := jsonschemaline.JsonschemalineItem{
 			Fullname:    "._param.config.id",
@@ -266,7 +267,7 @@ func TestToJsonSchemaKVpairs(t *testing.T) {
 			Format:      "number",
 			Required:    true,
 		}
-		kvs, err := item.ToJsonSchemaKVpairs()
+		kvs, err := item.ToJsonSchemaKVS()
 		require.NoError(t, err)
 		schema := kvs.Json()
 		expected := `{"$schema":"http://json-schema.org/draft-07/schema#","type":"object","properties":{"_param":{"type":"object","properties":{"config":{"type":"object","required":["id"],"properties":{"id":{"type":"string","format":"number","description":"ID","fullname":"._param.config.id"}}}}}}}`
@@ -282,7 +283,7 @@ func TestToJsonSchemaKVpairs(t *testing.T) {
 			Format:      "number",
 			Required:    true,
 		}
-		kvs, err := item.ToJsonSchemaKVpairs()
+		kvs, err := item.ToJsonSchemaKVS()
 		require.NoError(t, err)
 		schema := kvs.Json()
 		expected := `{"$schema":"http://json-schema.org/draft-07/schema#","type":"array","items":{"type":"object","properties":{"_param":{"type":"object","properties":{"config":{"type":"object","required":["id"],"properties":{"id":{"type":"string","format":"number","description":"ID","fullname":"[]._param.config.id"}}}}}}}}`
@@ -297,7 +298,7 @@ func TestToJsonSchemaKVpairs(t *testing.T) {
 			Format:      "number",
 			Required:    true,
 		}
-		kvs, err := item.ToJsonSchemaKVpairs()
+		kvs, err := item.ToJsonSchemaKVS()
 		require.NoError(t, err)
 		schema := kvs.Json()
 		expected := `{"$schema":"http://json-schema.org/draft-07/schema#","type":"object","properties":{"_param":{"type":"object","properties":{"config":{"type":"array","items":{"type":"object","required":["id"],"properties":{"id":{"type":"string","format":"number","description":"ID","fullname":"_param.config[].id"}}}}}}}}`

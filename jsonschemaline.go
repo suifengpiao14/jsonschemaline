@@ -8,7 +8,6 @@ import (
 	"regexp"
 	"strings"
 
-	jsonpatch "github.com/evanphx/json-patch/v5"
 	"github.com/pkg/errors"
 	"github.com/suifengpiao14/kvstruct"
 	"github.com/tidwall/gjson"
@@ -69,7 +68,7 @@ func (jItem JsonschemalineItem) jsonSchemaItem() (jsonStr string) {
 	return jsonStr
 }
 
-func (jItem JsonschemalineItem) ToJsonSchemaKVpairs() (kvs kvstruct.KVS, err error) {
+func (jItem JsonschemalineItem) ToJsonSchemaKVS() (kvs kvstruct.KVS, err error) {
 	kvs = make(kvstruct.KVS, 0)
 	arrSuffix := "[]"
 	fullname := strings.Trim(jItem.Fullname, ".")
@@ -353,49 +352,30 @@ func ParseJsonschemalineRaw(jsonschemalineRaw string) (meta *Meta, item *Jsonsch
 }
 
 func (l *Jsonschemaline) JsonSchema() (jsonschemaByte []byte, err error) {
-
-	jsonArr := make([]string, 0)
-	arrSuffix := "[]"
-	for _, item := range l.Items {
-		subJson := item.Json()
-		fullname := item.Fullname
-		if !strings.HasPrefix(fullname, arrSuffix) {
-			fullname = fmt.Sprintf(".%s", fullname) //增加顶级对象
-		}
-		arr := strings.Split(fullname, ".")
-		len := len(arr)
-		for j := len - 1; j > -1; j-- {
-			key := arr[j]
-			if strings.HasSuffix(key, arrSuffix) {
-				key = strings.TrimSuffix(key, arrSuffix)
-				if j == len-1 {
-					subJson = fmt.Sprintf(`{"%s":{"type":"array","items":%s}}`, key, subJson)
-				} else {
-					subJson = fmt.Sprintf(`{"%s":{"type":"array","items":{"type":"object","properties":%s}}}`, key, subJson)
-				}
-				continue
-			}
-			if j == len-1 {
-				subJson = fmt.Sprintf(`{"%s":%s}`, key, subJson)
-			} else {
-				subJson = fmt.Sprintf(`{"%s":{"type":"object","properties":%s}}`, key, subJson)
-			}
-		}
-		jsonArr = append(jsonArr, subJson)
+	kvs := kvstruct.KVS{
+		{Key: "$schema", Value: "http://json-schema.org/draft-07/schema#"},
 	}
-	original := []byte("{}")
-	for _, subJson := range jsonArr {
-		original, err = jsonpatch.MergePatch(original, []byte(subJson))
+	for _, item := range l.Items {
+		subKvs, err := item.ToJsonSchemaKVS()
 		if err != nil {
 			return nil, err
 		}
+		kvs.Add(subKvs...)
 	}
-	bLen := len(original)
-	jsonschemaByte = original[4 : bLen-1] // 切除最顶层{"":....} 内容
-	wrap := []byte(`{"$schema":"http://json-schema.org/draft-07/schema#"}`)
-	jsonschemaByte, err = jsonpatch.MergePatch(wrap, jsonschemaByte)
-	if err != nil {
-		return nil, err
+
+	jsonschemaByte = []byte("")
+	for _, kv := range kvs {
+		if kvstruct.IsJsonStr(kv.Value) {
+			jsonschemaByte, err = sjson.SetRawBytes(jsonschemaByte, kv.Key, []byte(kv.Value))
+			if err != nil {
+				return nil, err
+			}
+			continue
+		}
+		jsonschemaByte, err = sjson.SetBytes(jsonschemaByte, kv.Key, kv.Value)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return jsonschemaByte, nil
 }

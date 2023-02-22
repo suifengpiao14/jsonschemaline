@@ -7,7 +7,7 @@ require (
 	github.com/iancoleman/orderedmap v0.2.0
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.8.1
-	github.com/suifengpiao14/kvstruct v0.0.0-20230222090806-6eb65e01f880
+	github.com/suifengpiao14/kvstruct v0.0.0-20230222094254-af4e4c2a21cd
 	github.com/tidwall/gjson v1.14.4
 	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/tidwall/sjson v1.2.5
