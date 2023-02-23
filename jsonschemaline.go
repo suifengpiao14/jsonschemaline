@@ -188,7 +188,7 @@ type Jsonschemaline struct {
 func (l *Jsonschemaline) String() string {
 
 	lineArr := make([]string, 0)
-	lineArr = append(lineArr, fmt.Sprintf("version=%s,id=%s", l.Meta.Version, l.Meta.ID))
+	lineArr = append(lineArr, fmt.Sprintf("version=%s,direction=%s,id=%s", l.Meta.Version, l.Meta.Direction, l.Meta.ID))
 	var linemap []map[string]string
 	b, err := json.Marshal(l.Items)
 	if err != nil {
