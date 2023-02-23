@@ -419,6 +419,11 @@ func (l *Jsonschemaline) Jsonschemaline2json() (jsonStr string, err error) {
 	return l.JsonExample()
 }
 
+func (l *Jsonschemaline) ToSturct() (err error) {
+
+	return err
+}
+
 func (l *Jsonschemaline) GjsonPath(formatPath func(format string, src string, item *JsonschemalineItem) (path string)) (gjsonPath string) {
 	m := &map[string]interface{}{}
 	for _, item := range l.Items {
