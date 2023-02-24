@@ -310,9 +310,36 @@ func TestToJsonSchemaKVS(t *testing.T) {
 }
 
 func TestToSturct(t *testing.T) {
-	str := `{"Meta":{"id":"form","version":"http://json-schema.org/draft-07/schema#","direction":"in"},"Items":[{"comment":"广告标题","type":"string","required":"true","description":"广告标题","example":"新年豪礼","dst":"title","fullname":"title"},{"comment":"广告主","type":"string","required":"true","description":"广告主","example":"123","dst":"advertiserId","fullname":"advertiserId"},{"comment":"可以投放开始时间","type":"string","required":"true","description":"可以投放开始时间","example":"2023-01-12 00:00:00","dst":"beginAt","fullname":"beginAt"},{"comment":"投放结束时间","type":"string","required":"true","description":"投放结束时间","example":"2023-01-30 00:00:00","dst":"endAt","fullname":"endAt"},{"comment":"页索引,0开始","type":"string","required":"true","description":"页索引,0开始","default":"0","format":"int","dst":"index","fullname":"index"},{"comment":"每页数量","type":"string","required":"true","description":"每页数量","default":"10","dst":"size","fullname":"size"},{"comment":"文件格式","type":"string","required":"true","description":"文件格式","default":"application/json","dst":"content-type","fullname":"content-type"},{"comment":"访问服务的备案id","type":"string","required":"true","description":"访问服务的备案id","dst":"appid","fullname":"appid"},{"comment":"签名,外网访问需开启签名","type":"string","required":"true","description":"签名,外网访问需开启签名","dst":"signature","fullname":"signature"}]}`
-	lineSchema := jsonschemaline.Jsonschemaline{}
-	json.Unmarshal([]byte(str), &lineSchema)
-	structs := lineSchema.ToSturct()
-	fmt.Println(structs)
+	t.Run("simple", func(t *testing.T) {
+		str := `{"Meta":{"id":"form","version":"http://json-schema.org/draft-07/schema#","direction":"in"},"Items":[{"comment":"广告标题","type":"string","required":"true","description":"广告标题","example":"新年豪礼","dst":"title","fullname":"title"},{"comment":"广告主","type":"string","required":"true","description":"广告主","example":"123","dst":"advertiserId","fullname":"advertiserId"},{"comment":"可以投放开始时间","type":"string","required":"true","description":"可以投放开始时间","example":"2023-01-12 00:00:00","dst":"beginAt","fullname":"beginAt"},{"comment":"投放结束时间","type":"string","required":"true","description":"投放结束时间","example":"2023-01-30 00:00:00","dst":"endAt","fullname":"endAt"},{"comment":"页索引,0开始","type":"string","required":"true","description":"页索引,0开始","default":"0","format":"int","dst":"index","fullname":"index"},{"comment":"每页数量","type":"string","required":"true","description":"每页数量","default":"10","dst":"size","fullname":"size"},{"comment":"文件格式","type":"string","required":"true","description":"文件格式","default":"application/json","dst":"content-type","fullname":"content-type"},{"comment":"访问服务的备案id","type":"string","required":"true","description":"访问服务的备案id","dst":"appid","fullname":"appid"},{"comment":"签名,外网访问需开启签名","type":"string","required":"true","description":"签名,外网访问需开启签名","dst":"signature","fullname":"signature"}]}`
+		lineSchema := jsonschemaline.Jsonschemaline{}
+		json.Unmarshal([]byte(str), &lineSchema)
+		structs := lineSchema.ToSturct()
+		fmt.Println(structs.Json())
+	})
+
+	t.Run("complex", func(t *testing.T) {
+		str := `
+		version=http://json-schema.org/draft-07/schema#,direction=out,id=out
+		fullname=code,src=code,description=业务状态码,comment=业务状态码,example=0
+		fullname=message,src=message,description=业务提示,comment=业务提示,example=ok
+		fullname=items[].id,src=items[].id,description=主键,comment=主键,example=0
+		fullname=items[].title,src=items[].title,description=广告标题,comment=广告标题,example=新年豪礼
+		fullname=items[].advertiserId,src=items[].advertiserId,description=广告主,comment=广告主,example=123
+		fullname=items[].summary,src=items[].summary,description=广告素材-文字描述,comment=广告素材-文字描述,example=下单有豪礼
+		fullname=items[].image,src=items[].image,description=广告素材-图片地址,comment=广告素材-图片地址
+		fullname=items[].link,src=items[].link,description=连接地址,comment=连接地址
+		fullname=items[].type,src=items[].type,description=广告素材(类型),text-文字,image-图片,vido-视频,comment=广告素材(类型),text-文字,image-图片,vido-视频,example=image
+		fullname=items[].beginAt,src=items[].beginAt,description=投放开始时间,comment=投放开始时间,example=2023-01-12 00:00:00
+		fullname=items[].endAt,src=items[].endAt,description=投放结束时间,comment=投放结束时间,example=2023-01-30 00:00:00
+		fullname=items[].remark,src=items[].remark,description=备注,comment=备注,example=营养早餐广告
+		fullname=items[].valueObj,src=items[].valueObj,description=json扩展,广告的值属性对象,comment=json扩展,广告的值属性对象,example={"tag":"index"}`
+		lineSchema, err := jsonschemaline.ParseJsonschemaline(str)
+		require.NoError(t, err)
+		structs := lineSchema.ToSturct()
+		b, err := json.Marshal(structs)
+		require.NoError(t, err)
+		fmt.Println(string(b))
+	})
+
 }

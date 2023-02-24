@@ -54,23 +54,6 @@ type JsonschemalineItem struct {
 	TagLineKVpair    kvstruct.KVS `json:"-"`
 }
 
-func (jItem JsonschemalineItem) Name() (name string) {
-	name = jItem.Fullname
-	lastDotIndex := strings.LastIndex(name, ".")
-	if lastDotIndex > -1 {
-		name = name[lastDotIndex+1:]
-	}
-	return name
-}
-
-func (jItem JsonschemalineItem) Namespace() (namespace string) {
-	lastDotIndex := strings.LastIndex(jItem.Fullname, ".")
-	if lastDotIndex > -1 {
-		namespace = jItem.Fullname[:lastDotIndex]
-	}
-	return namespace
-}
-
 func (jItem JsonschemalineItem) Json() (jsonStr string) {
 	b, _ := json.Marshal(jItem)
 	jsonStr = string(b)
@@ -443,16 +426,45 @@ type Struct struct {
 	Attrs      []StructAttr
 }
 
-type StructAttr struct {
-	Name string
-	Type string
-	Tag  string
+// AddAttrIgnore 已经存在则跳过
+func (s *Struct) AddAttrIgnore(attrs ...StructAttr) {
+	if len(s.Attrs) == 0 {
+		s.Attrs = make([]StructAttr, 0)
+	}
+	for _, attr := range attrs {
+		if _, exists := s.GetAttr(attr.Name); exists {
+			continue
+		}
+		s.Attrs = append(s.Attrs, attr)
+	}
+
+}
+func (s *Struct) GetAttr(attrName string) (structAttr *StructAttr, exists bool) {
+	for _, attr := range s.Attrs {
+		if attr.Name == attrName {
+			return &attr, true
+		}
+	}
+	return nil, false
 }
 
-type Structs []Struct
+type StructAttr struct {
+	Name    string
+	Type    string
+	Tag     string
+	Comment string
+}
 
-func (s Structs) GetRoot() (struc Struct, exists bool) {
-	for _, stru := range s {
+type Structs []*Struct
+
+func (s *Structs) Json() (str string) {
+	b, _ := json.Marshal(s)
+	str = string(b)
+	return str
+}
+
+func (s *Structs) GetRoot() (struc *Struct, exists bool) {
+	for _, stru := range *s {
 		if stru.IsRoot {
 			return stru, true
 		}
@@ -460,61 +472,124 @@ func (s Structs) GetRoot() (struc Struct, exists bool) {
 	return struc, false
 }
 
+func (s *Structs) Get(name string) (struc *Struct, exists bool) {
+	for _, stru := range *s {
+		if stru.Name == name {
+			return stru, true
+		}
+	}
+	return struc, false
+}
+
+func (s *Structs) AddIngore(structs ...*Struct) {
+	if len(*s) == 0 {
+		*s = make(Structs, 0)
+	}
+	for _, structRef := range structs {
+		if _, exists := s.Get(structRef.Name); exists {
+			continue
+		}
+		*s = append(*s, structRef)
+
+	}
+}
+
 func (l *Jsonschemaline) ToSturct() (structs Structs) {
-	structsMap := map[string]*Struct{}
-	structRefs := make([]*Struct, 0) // 确保顺序
+	arraySuffix := "[]"
+	structs = make(Structs, 0)
 	id := string(l.Meta.ID)
-	prfix := id
+	rootStructName := ToCamel(id)
 	rootStruct := &Struct{
 		IsRoot:     true,
-		Name:       ToCamel(id),
+		Name:       rootStructName,
 		Attrs:      make([]StructAttr, 0),
 		Lineschema: l.String(),
 	}
-	structRefs = append(structRefs, rootStruct)
+	structs.AddIngore(rootStruct)
 	for _, item := range l.Items {
-		baseName := item.Name()
-		if baseName == "" {
+		if item.Fullname == "" {
 			continue
 		}
-		typ := item.Type
-		tag := fmt.Sprintf(`json:"%s"`, ToLowerCamel(baseName))
-		if typ == "string" {
-			switch item.Format {
-			case "int", "number":
-				typ = "int"
-				tag = fmt.Sprintf(`json:"%s,string"`, ToLowerCamel(baseName))
+		withRootFullname := strings.Trim(fmt.Sprintf("%s.%s", id, item.Fullname), ".")
+		nameArr := strings.Split(withRootFullname, ".")
+		nameCount := len(nameArr)
+		for i := 1; i < nameCount; i++ { //i从1开始,0 为root,已处理
+			baseName := nameArr[i]
+			if i < nameCount-1 { // 非最后一个,即为上级的attr,又为下级的struct
+				realBaseName := strings.TrimSuffix(baseName, arraySuffix)
+				isArray := baseName != realBaseName
+				attrName := ToCamel(realBaseName)
+				subStructName := ToCamel(strings.Join(nameArr[:i+1], "_"))
+				if _, ok := structs.Get(subStructName); ok { // 存在跳过
+					continue
+				}
+				//不存在,新增父类属性,增加子类
+				typ := subStructName
+				if isArray {
+					typ = fmt.Sprintf("[]%s", typ)
+				}
+				attr := StructAttr{
+					Name: attrName,
+					Type: typ,
+					Tag:  fmt.Sprintf(`json:"%s"`, ToLowerCamel(attrName)),
+				}
+				parentStructName := ToCamel(strings.Join(nameArr[:i], "_"))
+				parentStruct, _ := structs.Get(parentStructName) // 一定存在
+				parentStruct.AddAttrIgnore(attr)
+				subStruct := &Struct{
+					IsRoot: false,
+					Name:   subStructName,
+				}
+				structs.AddIngore(subStruct)
+				continue
 			}
-		}
 
-		attr := StructAttr{
-			Name: ToCamel(baseName),
-			Type: typ,
-			Tag:  tag,
-		}
-		namespace := item.Namespace()
-		if namespace == "" {
-			rootStruct.Attrs = append(rootStruct.Attrs, attr)
-			continue
-		}
-		replacer := strings.NewReplacer("[]", "", ".", "_")
-		namespace = replacer.Replace(namespace)
-		namespace = fmt.Sprintf("%s_%s", prfix, namespace)
-		namespace = ToCamel(namespace)
-		subStruct, ok := structsMap[namespace]
-		if !ok {
-			subStruct = &Struct{
-				Name: namespace,
+			// 最后一个
+			realBaseName := strings.TrimSuffix(baseName, arraySuffix)
+			isArray := baseName != realBaseName
+			attrName := ToCamel(realBaseName)
+			parentStructName := ToCamel(strings.Join(nameArr[:i], "_"))
+			parentStruct, _ := structs.Get(parentStructName)
+
+			typ := item.Type
+			tag := fmt.Sprintf(`json:"%s"`, ToLowerCamel(attrName))
+			if typ == "string" {
+				switch item.Format {
+				case "int", "number":
+					typ = "int"
+					tag = fmt.Sprintf(`json:"%s,string"`, ToLowerCamel(attrName))
+				}
 			}
-			structsMap[namespace] = subStruct
-			structRefs = append(structRefs, subStruct)
+			if l.Meta.Direction == LINE_SCHEMA_DIRECTION_IN && !item.Required { //当作入参时,非必填字断,使用引用
+				typ = fmt.Sprintf("*%s", typ)
+			}
+			if isArray {
+				typ = fmt.Sprintf("[]%s", typ)
+			}
 
+			newAttr := &StructAttr{
+				Name:    ToCamel(attrName),
+				Type:    typ,
+				Tag:     tag,
+				Comment: item.Comments,
+			}
+			attr, ok := parentStruct.GetAttr(attrName)
+			if ok { //已经存在,修正类型和备注
+				typ := newAttr.Type
+				if strings.HasPrefix(attr.Type, "[]") && !strings.HasPrefix(typ, "[]") {
+					typ = fmt.Sprintf("[]%s", typ)
+				}
+				attr.Type = typ
+				if newAttr.Comment != "" {
+					attr.Comment = newAttr.Comment
+				}
+				continue
+			}
+			// 不存在,新增
+			parentStruct.AddAttrIgnore(*newAttr)
 		}
-		subStruct.Attrs = append(subStruct.Attrs, attr)
 	}
-	for _, structRef := range structRefs {
-		structs = append(structs, *structRef)
-	}
+
 	return structs
 }
 
