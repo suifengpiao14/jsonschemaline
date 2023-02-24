@@ -66,7 +66,7 @@ func (jItem JsonschemalineItem) Name() (name string) {
 func (jItem JsonschemalineItem) Namespace() (namespace string) {
 	lastDotIndex := strings.LastIndex(jItem.Fullname, ".")
 	if lastDotIndex > -1 {
-		namespace = namespace[:lastDotIndex]
+		namespace = jItem.Fullname[:lastDotIndex]
 	}
 	return namespace
 }
@@ -437,19 +437,28 @@ func (l *Jsonschemaline) Jsonschemaline2json() (jsonStr string, err error) {
 }
 
 type Struct struct {
-	Package    string
+	IsRoot     bool
 	Name       string
 	Lineschema string
 	Attrs      []StructAttr
 }
 
 type StructAttr struct {
-	Name    string
-	Type    string
-	TagJson string
+	Name string
+	Type string
+	Tag  string
 }
 
 type Structs []Struct
+
+func (s Structs) GetRoot() (struc Struct, exists bool) {
+	for _, stru := range s {
+		if stru.IsRoot {
+			return stru, true
+		}
+	}
+	return struc, false
+}
 
 func (l *Jsonschemaline) ToSturct() (structs Structs) {
 	structsMap := map[string]*Struct{}
@@ -457,6 +466,7 @@ func (l *Jsonschemaline) ToSturct() (structs Structs) {
 	id := string(l.Meta.ID)
 	prfix := id
 	rootStruct := &Struct{
+		IsRoot:     true,
 		Name:       ToCamel(id),
 		Attrs:      make([]StructAttr, 0),
 		Lineschema: l.String(),
@@ -468,19 +478,19 @@ func (l *Jsonschemaline) ToSturct() (structs Structs) {
 			continue
 		}
 		typ := item.Type
-		tagJson := fmt.Sprintf(`json:"%s"`, ToLowerCamel(baseName))
+		tag := fmt.Sprintf(`json:"%s"`, ToLowerCamel(baseName))
 		if typ == "string" {
 			switch item.Format {
 			case "int", "number":
 				typ = "int"
-				tagJson = fmt.Sprintf(`json:"%s,string"`, ToLowerCamel(baseName))
+				tag = fmt.Sprintf(`json:"%s,string"`, ToLowerCamel(baseName))
 			}
 		}
 
 		attr := StructAttr{
-			Name:    ToCamel(baseName),
-			Type:    typ,
-			TagJson: tagJson,
+			Name: ToCamel(baseName),
+			Type: typ,
+			Tag:  tag,
 		}
 		namespace := item.Namespace()
 		if namespace == "" {
