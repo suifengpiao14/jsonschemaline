@@ -54,6 +54,23 @@ type JsonschemalineItem struct {
 	TagLineKVpair    kvstruct.KVS `json:"-"`
 }
 
+func (jItem JsonschemalineItem) Name() (name string) {
+	name = jItem.Fullname
+	lastDotIndex := strings.LastIndex(name, ".")
+	if lastDotIndex > -1 {
+		name = name[lastDotIndex+1:]
+	}
+	return name
+}
+
+func (jItem JsonschemalineItem) Namespace() (namespace string) {
+	lastDotIndex := strings.LastIndex(jItem.Fullname, ".")
+	if lastDotIndex > -1 {
+		namespace = namespace[:lastDotIndex]
+	}
+	return namespace
+}
+
 func (jItem JsonschemalineItem) Json() (jsonStr string) {
 	b, _ := json.Marshal(jItem)
 	jsonStr = string(b)
@@ -419,9 +436,76 @@ func (l *Jsonschemaline) Jsonschemaline2json() (jsonStr string, err error) {
 	return l.JsonExample()
 }
 
-func (l *Jsonschemaline) ToSturct() (err error) {
+type Struct struct {
+	Package    string
+	Name       string
+	Lineschema string
+	Attrs      []StructAttr
+}
 
-	return err
+type StructAttr struct {
+	Name    string
+	Type    string
+	TagJson string
+}
+
+type Structs []Struct
+
+func (l *Jsonschemaline) ToSturct() (structs Structs) {
+	structsMap := map[string]*Struct{}
+	structRefs := make([]*Struct, 0) // 确保顺序
+	id := string(l.Meta.ID)
+	prfix := id
+	rootStruct := &Struct{
+		Name:       ToCamel(id),
+		Attrs:      make([]StructAttr, 0),
+		Lineschema: l.String(),
+	}
+	structRefs = append(structRefs, rootStruct)
+	for _, item := range l.Items {
+		baseName := item.Name()
+		if baseName == "" {
+			continue
+		}
+		typ := item.Type
+		tagJson := fmt.Sprintf(`json:"%s"`, ToLowerCamel(baseName))
+		if typ == "string" {
+			switch item.Format {
+			case "int", "number":
+				typ = "int"
+				tagJson = fmt.Sprintf(`json:"%s,string"`, ToLowerCamel(baseName))
+			}
+		}
+
+		attr := StructAttr{
+			Name:    ToCamel(baseName),
+			Type:    typ,
+			TagJson: tagJson,
+		}
+		namespace := item.Namespace()
+		if namespace == "" {
+			rootStruct.Attrs = append(rootStruct.Attrs, attr)
+			continue
+		}
+		replacer := strings.NewReplacer("[]", "", ".", "_")
+		namespace = replacer.Replace(namespace)
+		namespace = fmt.Sprintf("%s_%s", prfix, namespace)
+		namespace = ToCamel(namespace)
+		subStruct, ok := structsMap[namespace]
+		if !ok {
+			subStruct = &Struct{
+				Name: namespace,
+			}
+			structsMap[namespace] = subStruct
+			structRefs = append(structRefs, subStruct)
+
+		}
+		subStruct.Attrs = append(subStruct.Attrs, attr)
+	}
+	for _, structRef := range structRefs {
+		structs = append(structs, *structRef)
+	}
+	return structs
 }
 
 func (l *Jsonschemaline) GjsonPath(formatPath func(format string, src string, item *JsonschemalineItem) (path string)) (gjsonPath string) {
