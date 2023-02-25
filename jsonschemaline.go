@@ -423,26 +423,39 @@ type Struct struct {
 	IsRoot     bool
 	Name       string
 	Lineschema string
-	Attrs      []StructAttr
+	Attrs      []*StructAttr
 }
 
 // AddAttrIgnore 已经存在则跳过
 func (s *Struct) AddAttrIgnore(attrs ...StructAttr) {
 	if len(s.Attrs) == 0 {
-		s.Attrs = make([]StructAttr, 0)
+		s.Attrs = make([]*StructAttr, 0)
 	}
 	for _, attr := range attrs {
 		if _, exists := s.GetAttr(attr.Name); exists {
 			continue
 		}
-		s.Attrs = append(s.Attrs, attr)
+		s.Attrs = append(s.Attrs, &attr)
 	}
+}
 
+// AddAttrReplace 增加或者替换
+func (s *Struct) AddAttrReplace(attrs ...StructAttr) {
+	if len(s.Attrs) == 0 {
+		s.Attrs = make([]*StructAttr, 0)
+	}
+	for _, attr := range attrs {
+		if old, exists := s.GetAttr(attr.Name); exists {
+			*old = attr
+			continue
+		}
+		s.Attrs = append(s.Attrs, &attr)
+	}
 }
 func (s *Struct) GetAttr(attrName string) (structAttr *StructAttr, exists bool) {
 	for _, attr := range s.Attrs {
 		if attr.Name == attrName {
-			return &attr, true
+			return attr, true
 		}
 	}
 	return nil, false
@@ -502,7 +515,7 @@ func (l *Jsonschemaline) ToSturct() (structs Structs) {
 	rootStruct := &Struct{
 		IsRoot:     true,
 		Name:       rootStructName,
-		Attrs:      make([]StructAttr, 0),
+		Attrs:      make([]*StructAttr, 0),
 		Lineschema: l.String(),
 	}
 	structs.AddIngore(rootStruct)
@@ -514,28 +527,24 @@ func (l *Jsonschemaline) ToSturct() (structs Structs) {
 		nameArr := strings.Split(withRootFullname, ".")
 		nameCount := len(nameArr)
 		for i := 1; i < nameCount; i++ { //i从1开始,0 为root,已处理
+			parentStructName := ToCamel(strings.Join(nameArr[:i], "_"))
+			parentStruct, _ := structs.Get(parentStructName) // 一定存在
 			baseName := nameArr[i]
+			realBaseName := strings.TrimSuffix(baseName, arraySuffix)
+			isArray := baseName != realBaseName
+			attrName := ToCamel(realBaseName)
 			if i < nameCount-1 { // 非最后一个,即为上级的attr,又为下级的struct
-				realBaseName := strings.TrimSuffix(baseName, arraySuffix)
-				isArray := baseName != realBaseName
-				attrName := ToCamel(realBaseName)
 				subStructName := ToCamel(strings.Join(nameArr[:i+1], "_"))
-				if _, ok := structs.Get(subStructName); ok { // 存在跳过
-					continue
-				}
-				//不存在,新增父类属性,增加子类
-				typ := subStructName
+				attrType := subStructName
 				if isArray {
-					typ = fmt.Sprintf("[]%s", typ)
+					attrType = fmt.Sprintf("[]%s", attrType)
 				}
 				attr := StructAttr{
 					Name: attrName,
-					Type: typ,
+					Type: attrType,
 					Tag:  fmt.Sprintf(`json:"%s"`, ToLowerCamel(attrName)),
 				}
-				parentStructName := ToCamel(strings.Join(nameArr[:i], "_"))
-				parentStruct, _ := structs.Get(parentStructName) // 一定存在
-				parentStruct.AddAttrIgnore(attr)
+				parentStruct.AddAttrReplace(attr)
 				subStruct := &Struct{
 					IsRoot: false,
 					Name:   subStructName,
@@ -545,12 +554,6 @@ func (l *Jsonschemaline) ToSturct() (structs Structs) {
 			}
 
 			// 最后一个
-			realBaseName := strings.TrimSuffix(baseName, arraySuffix)
-			isArray := baseName != realBaseName
-			attrName := ToCamel(realBaseName)
-			parentStructName := ToCamel(strings.Join(nameArr[:i], "_"))
-			parentStruct, _ := structs.Get(parentStructName)
-
 			typ := item.Type
 			tag := fmt.Sprintf(`json:"%s"`, ToLowerCamel(attrName))
 			if typ == "string" {
