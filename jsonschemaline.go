@@ -48,6 +48,7 @@ type JsonschemalineItem struct {
 	ReadOnly         bool         `json:"readOnly,omitempty,string"`   // section 9.4
 	WriteOnly        bool         `json:"writeOnly,omitempty,string"`  // section 9.4
 	Example          string       `json:"example,omitempty"`           // section 9.5
+	Examples         string       `json:"examples,omitempty"`          // section 9.5
 	Src              string       `json:"src,omitempty"`
 	Dst              string       `json:"dst,omitempty"`
 	Fullname         string       `json:"fullname,omitempty"`
@@ -369,6 +370,9 @@ func (l *Jsonschemaline) JsonSchema() (jsonschemaByte []byte, err error) {
 
 	jsonschemaByte = []byte("")
 	for _, kv := range kvs {
+		if gjson.GetBytes(jsonschemaByte, kv.Key).Exists() { // 已经存在的，不覆盖（防止 array、object 在其子属性说明后，导致覆盖）
+			continue
+		}
 		if kvstruct.IsJsonStr(kv.Value) {
 			jsonschemaByte, err = sjson.SetRawBytes(jsonschemaByte, kv.Key, []byte(kv.Value))
 			if err != nil {
@@ -388,7 +392,9 @@ func (l *Jsonschemaline) JsonExample() (jsonExample string, err error) {
 	for _, item := range l.Items {
 		key := strings.ReplaceAll(item.Fullname, "[]", ".0")
 		var value interface{}
-		if item.Example != "" {
+		if item.Examples != "" {
+			value = item.Examples
+		} else if item.Example != "" {
 			value = item.Example
 		} else if item.Default != "" {
 			value = item.Default
@@ -403,7 +409,13 @@ func (l *Jsonschemaline) JsonExample() (jsonExample string, err error) {
 			}
 		}
 		existsResult := gjson.Get(jsonExample, key)
-		if existsResult.IsArray() || existsResult.IsObject() {
+		if existsResult.IsArray() || existsResult.IsObject() { //支持array、object 整体设置example
+			if str, ok := value.(string); ok {
+				jsonExample, err = sjson.SetRaw(jsonExample, key, str)
+				if err != nil {
+					return "", err
+				}
+			}
 			continue
 		}
 		jsonExample, err = sjson.Set(jsonExample, key, value)
