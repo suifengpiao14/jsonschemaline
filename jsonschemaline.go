@@ -17,25 +17,26 @@ import (
 type JsonschemalineItem struct {
 	Comments string `json:"comment,omitempty"` // section 8.3
 
-	Type             string `json:"type,omitempty"`                    // section 6.1.1
-	Enum             string `json:"enum,omitempty"`                    // section 6.1.2
-	Const            string `json:"const,omitempty"`                   // section 6.1.3
-	MultipleOf       int    `json:"multipleOf,omitempty,string"`       // section 6.2.1
-	Maximum          int    `json:"maximum,omitempty,string"`          // section 6.2.2
-	ExclusiveMaximum bool   `json:"exclusiveMaximum,omitempty,string"` // section 6.2.3
-	Minimum          int    `json:"minimum,omitempty,string"`          // section 6.2.4
-	ExclusiveMinimum bool   `json:"exclusiveMinimum,omitempty,string"` // section 6.2.5
-	MaxLength        int    `json:"maxLength,omitempty,string"`        // section 6.3.1
-	MinLength        int    `json:"minLength,omitempty,string"`        // section 6.3.2
-	Pattern          string `json:"pattern,omitempty"`                 // section 6.3.3
-	MaxItems         int    `json:"maxItems,omitempty,string"`         // section 6.4.1
-	MinItems         int    `json:"minItems,omitempty,string"`         // section 6.4.2
-	UniqueItems      bool   `json:"uniqueItems,omitempty,string"`      // section 6.4.3
-	MaxContains      uint   `json:"maxContains,omitempty,string"`      // section 6.4.4
-	MinContains      uint   `json:"minContains,omitempty,string"`      // section 6.4.5
-	MaxProperties    int    `json:"maxProperties,omitempty,string"`    // section 6.5.1
-	MinProperties    int    `json:"minProperties,omitempty,string"`    // section 6.5.2
-	Required         bool   `json:"required,omitempty,string"`         // section 6.5.3
+	Type             string   `json:"type,omitempty"`                    // section 6.1.1
+	Enum             []string `json:"enum,omitempty"`                    // section 6.1.2
+	EnumNames        []string `json:"enumNames,omitempty"`               // section 6.1.2
+	Const            string   `json:"const,omitempty"`                   // section 6.1.3
+	MultipleOf       int      `json:"multipleOf,omitempty,string"`       // section 6.2.1
+	Maximum          int      `json:"maximum,omitempty,string"`          // section 6.2.2
+	ExclusiveMaximum bool     `json:"exclusiveMaximum,omitempty,string"` // section 6.2.3
+	Minimum          int      `json:"minimum,omitempty,string"`          // section 6.2.4
+	ExclusiveMinimum bool     `json:"exclusiveMinimum,omitempty,string"` // section 6.2.5
+	MaxLength        int      `json:"maxLength,omitempty,string"`        // section 6.3.1
+	MinLength        int      `json:"minLength,omitempty,string"`        // section 6.3.2
+	Pattern          string   `json:"pattern,omitempty"`                 // section 6.3.3
+	MaxItems         int      `json:"maxItems,omitempty,string"`         // section 6.4.1
+	MinItems         int      `json:"minItems,omitempty,string"`         // section 6.4.2
+	UniqueItems      bool     `json:"uniqueItems,omitempty,string"`      // section 6.4.3
+	MaxContains      uint     `json:"maxContains,omitempty,string"`      // section 6.4.4
+	MinContains      uint     `json:"minContains,omitempty,string"`      // section 6.4.5
+	MaxProperties    int      `json:"maxProperties,omitempty,string"`    // section 6.5.1
+	MinProperties    int      `json:"minProperties,omitempty,string"`    // section 6.5.2
+	Required         bool     `json:"required,omitempty,string"`         // section 6.5.3
 	// RFC draft-bhutton-json-schema-validation-00, section 7
 	Format string `json:"format,omitempty"`
 	// RFC draft-bhutton-json-schema-validation-00, section 8
