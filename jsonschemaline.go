@@ -69,6 +69,11 @@ func (jItem JsonschemalineItem) jsonSchemaItem() (jsonStr string) {
 	copy.Fullname = ""
 	copy.Dst = ""
 	copy.Src = ""
+	if len(copy.EnumNames) > 0 { // 枚举值需要名称时，单独处理
+
+		copy.Enum = nil
+		copy.EnumNames = nil
+	}
 	b, _ := json.Marshal(copy)
 	jsonStr = string(b)
 	return jsonStr
@@ -101,9 +106,27 @@ func (jItem JsonschemalineItem) ToJsonSchemaKVS() (kvs kvstruct.KVS, err error) 
 			}
 			kvs = append(kvs, kv)
 			if i == l-1 {
+				key := strings.Trim(fmt.Sprintf("%s.items", prefix), ".")
 				kv = kvstruct.KV{
-					Key:   strings.Trim(fmt.Sprintf("%s.items", prefix), "."),
+					Key:   key,
 					Value: jItem.jsonSchemaItem(),
+				}
+				if len(jItem.EnumNames) > 0 {
+					enumLen := len(jItem.Enum)
+					for i, enumName := range jItem.EnumNames {
+						if i >= enumLen {
+							continue
+						}
+						enum := jItem.Enum[i]
+						kv = kvstruct.KV{
+							Key:   strings.Trim(fmt.Sprintf("%s.oneOf.%d.const", key, i), "."),
+							Value: enum,
+						}
+						kv = kvstruct.KV{
+							Key:   strings.Trim(fmt.Sprintf("%s.oneOf.%d.title", enumName, i), "."),
+							Value: enum,
+						}
+					}
 				}
 				continue
 			}
