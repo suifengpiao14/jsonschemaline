@@ -307,6 +307,34 @@ func TestToJsonSchemaKVS(t *testing.T) {
 		ok := jsonpatch.Equal([]byte(expected), []byte(schema))
 		assert.Equal(t, true, ok)
 	})
+	t.Run("enumNames", func(t *testing.T) {
+		item := jsonschemaline.JsonschemalineItem{
+			Fullname:    "_param.config.type",
+			Description: "类型",
+			Type:        "string",
+			Required:    true,
+			Enum:        []string{"1", "2"},
+			EnumNames:   []string{"类型1", "类型2"},
+		}
+		kvs, err := item.ToJsonSchemaKVS()
+		require.NoError(t, err)
+		schema := kvs.Json()
+		fmt.Println(schema)
+	})
+	t.Run("enumNames_array", func(t *testing.T) {
+		item := jsonschemaline.JsonschemalineItem{
+			Fullname:    "_param.config.type[]",
+			Description: "类型",
+			Type:        "string",
+			Required:    true,
+			Enum:        []string{"1", "2"},
+			EnumNames:   []string{"类型1", "类型2"},
+		}
+		kvs, err := item.ToJsonSchemaKVS()
+		require.NoError(t, err)
+		schema := kvs.Json()
+		fmt.Println(schema)
+	})
 }
 
 func TestToSturct(t *testing.T) {

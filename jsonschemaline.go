@@ -106,28 +106,14 @@ func (jItem JsonschemalineItem) ToJsonSchemaKVS() (kvs kvstruct.KVS, err error) 
 			}
 			kvs = append(kvs, kv)
 			if i == l-1 {
-				key := strings.Trim(fmt.Sprintf("%s.items", prefix), ".")
+				fullKey := strings.Trim(fmt.Sprintf("%s.items", prefix), ".")
 				kv = kvstruct.KV{
-					Key:   key,
+					Key:   fullKey,
 					Value: jItem.jsonSchemaItem(),
 				}
-				if len(jItem.EnumNames) > 0 {
-					enumLen := len(jItem.Enum)
-					for i, enumName := range jItem.EnumNames {
-						if i >= enumLen {
-							continue
-						}
-						enum := jItem.Enum[i]
-						kv = kvstruct.KV{
-							Key:   strings.Trim(fmt.Sprintf("%s.oneOf.%d.const", key, i), "."),
-							Value: enum,
-						}
-						kv = kvstruct.KV{
-							Key:   strings.Trim(fmt.Sprintf("%s.oneOf.%d.title", enumName, i), "."),
-							Value: enum,
-						}
-					}
-				}
+				kvs.AddReplace(kv)
+				subKvs := enumNames2KVS(jItem.Enum, jItem.EnumNames, fullKey)
+				kvs.AddReplace(subKvs...)
 				continue
 			}
 			prefix = fmt.Sprintf("%s.items", prefix)
@@ -148,13 +134,16 @@ func (jItem JsonschemalineItem) ToJsonSchemaKVS() (kvs kvstruct.KVS, err error) 
 					Key:   strings.Trim(fmt.Sprintf("%s.required.-1", parentKey), "."),
 					Value: key,
 				}
-				kvs = append(kvs, kv)
+				kvs.AddReplace(kv)
 			}
+			fullKey := strings.Trim(fmt.Sprintf("%s.%s", prefix, key), ".")
 			kv := kvstruct.KV{
-				Key:   strings.Trim(fmt.Sprintf("%s.%s", prefix, key), "."),
+				Key:   fullKey,
 				Value: jItem.jsonSchemaItem(),
 			}
-			kvs = append(kvs, kv)
+			kvs.AddReplace(kv)
+			subKvs := enumNames2KVS(jItem.Enum, jItem.EnumNames, fullKey)
+			kvs.AddReplace(subKvs...)
 			continue
 		}
 
@@ -167,6 +156,31 @@ func (jItem JsonschemalineItem) ToJsonSchemaKVS() (kvs kvstruct.KVS, err error) 
 		prefix = fmt.Sprintf("%s.properties", prefix)
 	}
 	return kvs, nil
+}
+
+func enumNames2KVS(enum []string, enumNames []string, prefix string) (kvs kvstruct.KVS) {
+	kvs = make(kvstruct.KVS, 0)
+	if len(enumNames) < 1 {
+		return kvs
+	}
+	enumLen := len(enum)
+	for i, enumName := range enumNames {
+		if i >= enumLen {
+			continue
+		}
+		enum := enum[i]
+		kv := kvstruct.KV{
+			Key:   strings.Trim(fmt.Sprintf("%s.oneOf.%d.const", prefix, i), "."),
+			Value: enum,
+		}
+		kvs.Add(kv)
+		kv = kvstruct.KV{
+			Key:   strings.Trim(fmt.Sprintf("%s.oneOf.%d.title", prefix, i), "."),
+			Value: enumName,
+		}
+		kvs.Add(kv)
+	}
+	return kvs
 }
 
 var jsonschemalineItemOrder = []string{
