@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -79,6 +80,12 @@ func (jItem JsonschemalineItem) jsonSchemaItem() (jsonStr string) {
 	return jsonStr
 }
 
+func (jItem JsonschemalineItem) ToKVS(namespance string) (kvs kvstruct.KVS) {
+	jsonStr := jItem.jsonSchemaItem()
+	kvs = kvstruct.JsonToKVS(jsonStr, namespance)
+	return kvs
+}
+
 func (jItem JsonschemalineItem) ToJsonSchemaKVS() (kvs kvstruct.KVS, err error) {
 	kvs = make(kvstruct.KVS, 0)
 	arrSuffix := "[]"
@@ -107,11 +114,8 @@ func (jItem JsonschemalineItem) ToJsonSchemaKVS() (kvs kvstruct.KVS, err error) 
 			kvs = append(kvs, kv)
 			if i == l-1 {
 				fullKey := strings.Trim(fmt.Sprintf("%s.items", prefix), ".")
-				kv = kvstruct.KV{
-					Key:   fullKey,
-					Value: jItem.jsonSchemaItem(),
-				}
-				kvs.AddReplace(kv)
+				attrKvs := jItem.ToKVS(fullKey)
+				kvs.AddReplace(attrKvs...)
 				subKvs := enumNames2KVS(jItem.Enum, jItem.EnumNames, fullKey)
 				kvs.AddReplace(subKvs...)
 				continue
@@ -137,11 +141,8 @@ func (jItem JsonschemalineItem) ToJsonSchemaKVS() (kvs kvstruct.KVS, err error) 
 				kvs.AddReplace(kv)
 			}
 			fullKey := strings.Trim(fmt.Sprintf("%s.%s", prefix, key), ".")
-			kv := kvstruct.KV{
-				Key:   fullKey,
-				Value: jItem.jsonSchemaItem(),
-			}
-			kvs.AddReplace(kv)
+			attrKvs := jItem.ToKVS(fullKey)
+			kvs.AddReplace(attrKvs...)
 			subKvs := enumNames2KVS(jItem.Enum, jItem.EnumNames, fullKey)
 			kvs.AddReplace(subKvs...)
 			continue
@@ -418,7 +419,16 @@ func (l *Jsonschemaline) JsonSchema() (jsonschemaByte []byte, err error) {
 			}
 			continue
 		}
-		jsonschemaByte, err = sjson.SetBytes(jsonschemaByte, kv.Key, kv.Value)
+		var value interface{}
+		value = kv.Value
+		baseKey := BaseName(kv.Key)
+		switch baseKey {
+		case "exclusiveMaximum", "exclusiveMinimum", "deprecated", "readOnly", "writeOnly", "uniqueItems":
+			value = kv.Value == "true"
+		case "multipleOf", "maximum", "minimum", "maxLength", "minLength", "maxItems", "minItems", "maxContains", "minContains", "maxProperties", "minProperties":
+			value, _ = strconv.Atoi(kv.Value)
+		}
+		jsonschemaByte, err = sjson.SetBytes(jsonschemaByte, kv.Key, value)
 		if err != nil {
 			return nil, err
 		}
