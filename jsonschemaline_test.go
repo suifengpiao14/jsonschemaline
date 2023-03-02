@@ -271,7 +271,8 @@ func TestToJsonSchemaKVS(t *testing.T) {
 		}
 		kvs, err := item.ToJsonSchemaKVS()
 		require.NoError(t, err)
-		schema := kvs.Json()
+		schema, err := kvs.Json(false)
+		require.NoError(t, err)
 		expected := `{"$schema":"http://json-schema.org/draft-07/schema#","type":"object","properties":{"_param":{"type":"object","properties":{"config":{"type":"object","required":["id"],"properties":{"id":{"type":"string","format":"number","description":"ID"}}}}}}}`
 		ok := jsonpatch.Equal([]byte(expected), []byte(schema))
 		assert.Equal(t, true, ok)
@@ -287,7 +288,8 @@ func TestToJsonSchemaKVS(t *testing.T) {
 		}
 		kvs, err := item.ToJsonSchemaKVS()
 		require.NoError(t, err)
-		schema := kvs.Json()
+		schema, err := kvs.Json(false)
+		require.NoError(t, err)
 		expected := `{"$schema":"http://json-schema.org/draft-07/schema#","type":"array","items":{"type":"object","properties":{"_param":{"type":"object","properties":{"config":{"type":"object","required":["id"],"properties":{"id":{"type":"string","format":"number","description":"ID"}}}}}}}}`
 		ok := jsonpatch.Equal([]byte(expected), []byte(schema))
 		assert.Equal(t, true, ok)
@@ -302,7 +304,8 @@ func TestToJsonSchemaKVS(t *testing.T) {
 		}
 		kvs, err := item.ToJsonSchemaKVS()
 		require.NoError(t, err)
-		schema := kvs.Json()
+		schema, err := kvs.Json(false)
+		require.NoError(t, err)
 		expected := `{"$schema":"http://json-schema.org/draft-07/schema#","type":"object","properties":{"_param":{"type":"object","properties":{"config":{"type":"array","items":{"type":"object","required":["id"],"properties":{"id":{"type":"string","format":"number","description":"ID"}}}}}}}}`
 		ok := jsonpatch.Equal([]byte(expected), []byte(schema))
 		assert.Equal(t, true, ok)
@@ -318,7 +321,8 @@ func TestToJsonSchemaKVS(t *testing.T) {
 		}
 		kvs, err := item.ToJsonSchemaKVS()
 		require.NoError(t, err)
-		schema := kvs.Json()
+		schema, err := kvs.Json(false)
+		require.NoError(t, err)
 		fmt.Println(schema)
 	})
 	t.Run("enumNames_array", func(t *testing.T) {
@@ -332,7 +336,8 @@ func TestToJsonSchemaKVS(t *testing.T) {
 		}
 		kvs, err := item.ToJsonSchemaKVS()
 		require.NoError(t, err)
-		schema := kvs.Json()
+		schema, err := kvs.Json(false)
+		require.NoError(t, err)
 		fmt.Println(schema)
 	})
 }
