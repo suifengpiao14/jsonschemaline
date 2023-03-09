@@ -382,3 +382,34 @@ func TestToSturct(t *testing.T) {
 	})
 
 }
+
+func TestAddNameprefix(t *testing.T) {
+	str := `
+		version=http://json-schema.org/draft-07/schema#,direction=out,id=out
+        fullname=code,src=code,description=业务状态码,comment=业务状态码,example=0
+        fullname=message,src=message,description=业务提示,comment=业务提示,example=ok
+        fullname=items,src=items,type=array,description=数组,comment=数组,example=-
+        fullname=items[].id,src=items[].id,description=主键,comment=主键,example=0
+        fullname=items[].title,src=items[].title,description=广告标题,comment=广告标题,example=新年豪礼
+        fullname=items[].advertiserId,src=items[].advertiserId,description=广告主,comment=广告主,example=123
+        fullname=items[].summary,src=items[].summary,description=广告素材-文字描述,comment=广告素材-文字描述,example=下单有豪礼
+        fullname=items[].image,src=items[].image,description=广告素材-图片地址,comment=广告素材-图片地址
+        fullname=items[].link,src=items[].link,description=连接地址,comment=连接地址
+        fullname=items[].type,src=items[].type,description=广告素材(类型),text-文字,image-图片,vido-视频,comment=广告素材(类型),text-文字,image-图片,vido-视频,example=image
+        fullname=items[].beginAt,src=items[].beginAt,description=投放开始时间,comment=投放开始时间,example=2023-01-12 00:00:00
+        fullname=items[].endAt,src=items[].endAt,description=投放结束时间,comment=投放结束时间,example=2023-01-30 00:00:00
+        fullname=items[].remark,src=items[].remark,description=备注,comment=备注,example=营养早餐广告
+        fullname=items[].valueObj,src=items[].valueObj,description=json扩展,广告的值属性对象,comment=json扩展,广告的值属性对象,example={"tag":"index"}
+        fullname=pagination,src=pagination,type=object,description=对象,comment=对象
+        fullname=pagination.index,src=pagination.index,description=页索引,0开始,comment=页索引,0开始,example=0
+        fullname=pagination.size,src=pagination.size,description=每页数量,comment=每页数量,example=10
+        fullname=pagination.total,src=pagination.total,description=总数,comment=总数,example=60
+`
+	lineSchema, err := jsonschemaline.ParseJsonschemaline(str)
+	require.NoError(t, err)
+	structs := lineSchema.ToSturct()
+	nameprefix := "name_space"
+	newStructs := structs.Copy()
+	newStructs.AddNameprefix(nameprefix)
+	fmt.Println(newStructs)
+}

@@ -567,6 +567,40 @@ func (s *Structs) AddIngore(structs ...*Struct) {
 	}
 }
 
+//Copy 深度复制
+func (s Structs) Copy() (newStructs Structs) {
+	newStructs = make(Structs, 0)
+	for _, struc := range s {
+		newStruct := *struc
+		newStruct.Attrs = make([]*StructAttr, 0)
+		for _, attr := range struc.Attrs {
+			newAttr := *attr
+			newStruct.Attrs = append(newStruct.Attrs, &newAttr)
+		}
+		newStructs = append(newStructs, &newStruct)
+	}
+	return newStructs
+}
+
+func (s *Structs) AddNameprefix(nameprefix string) {
+	if len(*s) == 0 {
+		return
+	}
+	allAttrs := make([]*StructAttr, 0)
+	for _, struc := range *s {
+		allAttrs = append(allAttrs, struc.Attrs...)
+	}
+	for _, struc := range *s {
+		baseName := struc.Name
+		struc.Name = ToCamel(fmt.Sprintf("%s_%s", nameprefix, baseName))
+		for _, attr := range allAttrs {
+			if strings.HasSuffix(attr.Type, baseName) {
+				attr.Type = fmt.Sprintf("%s%s", attr.Type[:len(attr.Type)-len(baseName)], struc.Name)
+			}
+		}
+	}
+}
+
 func (l *Jsonschemaline) ToSturct() (structs Structs) {
 	arraySuffix := "[]"
 	structs = make(Structs, 0)
@@ -593,6 +627,10 @@ func (l *Jsonschemaline) ToSturct() (structs Structs) {
 			realBaseName := strings.TrimSuffix(baseName, arraySuffix)
 			isArray := baseName != realBaseName
 			attrName := ToCamel(realBaseName)
+			comment := item.Comments
+			if comment == "" {
+				comment = item.Description
+			}
 			if i < nameCount-1 { // 非最后一个,即为上级的attr,又为下级的struct
 				subStructName := ToCamel(strings.Join(nameArr[:i+1], "_"))
 				attrType := subStructName
@@ -603,6 +641,7 @@ func (l *Jsonschemaline) ToSturct() (structs Structs) {
 					Name: attrName,
 					Type: attrType,
 					Tag:  fmt.Sprintf(`json:"%s"`, ToLowerCamel(attrName)),
+					//Comment: comment,// 符合类型comment 无意义，不增加
 				}
 				parentStruct.AddAttrReplace(attr)
 				subStruct := &Struct{
@@ -634,7 +673,7 @@ func (l *Jsonschemaline) ToSturct() (structs Structs) {
 				Name:    ToCamel(attrName),
 				Type:    typ,
 				Tag:     tag,
-				Comment: item.Comments,
+				Comment: comment,
 			}
 			attr, ok := parentStruct.GetAttr(attrName)
 			if ok { //已经存在,修正类型和备注
