@@ -435,6 +435,10 @@ func (l *Jsonschemaline) JsonSchema() (jsonschemaByte []byte, err error) {
 	}
 	return jsonschemaByte, nil
 }
+func ReplacePathSpecalChar(path string) (newPath string) {
+	replacer := strings.NewReplacer("|", "\\|", "#", "\\#", "@", "\\@", "*", "\\*", "?", "\\?")
+	return replacer.Replace(path)
+}
 func (l *Jsonschemaline) JsonExample() (jsonExample string, err error) {
 	jsonExample = ""
 	for _, item := range l.Items {
@@ -456,6 +460,7 @@ func (l *Jsonschemaline) JsonExample() (jsonExample string, err error) {
 				value = ""
 			}
 		}
+		key = ReplacePathSpecalChar(key)
 		existsResult := gjson.Get(jsonExample, key)
 		if existsResult.IsArray() || existsResult.IsObject() { //支持array、object 整体设置example
 			if str, ok := value.(string); ok {

@@ -382,3 +382,12 @@ func TestToSturct(t *testing.T) {
 	})
 
 }
+
+func TestExampleSjsn(t *testing.T) {
+	lineschema := "version=http://json-schema.org/draft-07/schema#,direction=in,id=example\nfullname=[[Table . `obj.#(fullname%\"items[]*\")#,dst=[[Table . `obj.#(fullname%\"items[]*\")#,type=#(fullname!%\"*[].id\")#` \",format={#.fullname.@basePath},default=是,example={#.description}"
+	schema, err := jsonschemaline.ParseJsonschemaline(lineschema)
+	require.NoError(t, err)
+	example, err := schema.JsonExample()
+	require.NoError(t, err)
+	fmt.Println(example)
+}
