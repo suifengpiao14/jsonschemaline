@@ -54,6 +54,7 @@ type JsonschemalineItem struct {
 	Src              string       `json:"src,omitempty"`
 	Dst              string       `json:"dst,omitempty"`
 	Fullname         string       `json:"fullname,omitempty"`
+	AllowEmptyValue  bool         `json:"allowEmptyValue,omitempty,string"`
 	TagLineKVpair    kvstruct.KVS `json:"-"`
 }
 
@@ -185,7 +186,7 @@ func enumNames2KVS(enum []string, enumNames []string, prefix string) (kvs kvstru
 }
 
 var jsonschemalineItemOrder = []string{
-	"fullname", "src", "dst", "type", "format", "pattern", "enum", "required", "title", "description", "default", "comment", "example", "deprecated", "const",
+	"fullname", "src", "dst", "type", "format", "pattern", "enum", "required", "allowEmptyValue", "title", "description", "default", "comment", "example", "deprecated", "const",
 	"multipleOf", "maximum", "exclusiveMaximum", "minimum", "exclusiveMinimum", "maxLength", "minLength",
 	"maxItems",
 	"minItems",
