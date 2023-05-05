@@ -485,6 +485,15 @@ func (l *Jsonschemaline) Jsonschemaline2json() (jsonStr string, err error) {
 	return l.JsonExample()
 }
 
+//DefaultJson 获取默认值
+func (l *Jsonschemaline) DefaultJson() (defaultData string, err error) {
+	defaultJson, err := ParseDefaultJson(*l)
+	if err != nil {
+		return "", err
+	}
+	return defaultJson.Json, nil
+}
+
 type Struct struct {
 	IsRoot     bool
 	Name       string

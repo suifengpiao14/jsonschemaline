@@ -21,7 +21,7 @@ func ParseDefaultJson(jsonschemaline Jsonschemaline) (defaultJson *DefaultJson, 
 	defaultJson.Version = jsonschemaline.Meta.Version
 	kvmap := make(map[string]string)
 	for _, item := range jsonschemaline.Items {
-		if item.Default != "" {
+		if item.Default != "" || item.AllowEmptyValue {
 			path := strings.ReplaceAll(item.Fullname, "[]", ".#")
 			//k := fmt.Sprintf("%s.%s", id, path)
 			kvmap[path] = item.Default
