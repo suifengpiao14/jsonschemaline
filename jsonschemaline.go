@@ -669,14 +669,15 @@ func (l *Jsonschemaline) ToSturct() (structs Structs) {
 
 			// 最后一个
 			typ := item.Type
-			tag := fmt.Sprintf(`json:"%s"`, ToLowerCamel(attrName))
 			if typ == "string" {
 				switch item.Format {
 				case "int", "number":
 					typ = "int"
-					tag = fmt.Sprintf(`json:"%s,string"`, ToLowerCamel(attrName))
+				case "float":
+					typ = "float64"
 				}
 			}
+			tag := fmt.Sprintf(`json:"%s"`, ToLowerCamel(attrName))
 			if l.Meta.Direction == LINE_SCHEMA_DIRECTION_IN && !item.Required { //当作入参时,非必填字断,使用引用
 				typ = fmt.Sprintf("*%s", typ)
 			}
