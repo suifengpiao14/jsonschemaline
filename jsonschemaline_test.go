@@ -247,6 +247,37 @@ func TestGjsonPath2(t *testing.T) {
 	out := gjson.Get(jsonStr, gjsonPath).String()
 	fmt.Println(out)
 }
+func TestGjsonPathWithDefaultFormat(t *testing.T) {
+	line := `version=http://json-schema.org/draft-07/schema,id=input,direction=in
+	fullname=pageIndex,dst=pageIndex,format=number,required
+	fullname=pageSize,dst=pageSize,format=number,required
+	fullname=valid,dst=valid,format=bool,required
+	`
+	lineschema, err := jsonschemaline.ParseJsonschemaline(line)
+	if err != nil {
+		panic(err)
+	}
+	gjsonPath := lineschema.GjsonPathWithDefaultFormat()
+	if err != nil {
+		panic(err)
+	}
+	t.Run("string", func(t *testing.T) {
+		jsonStr := `{"input":{"pageIndex":"0","pageSize":"20"}}`
+		out := gjson.Get(jsonStr, gjsonPath).String()
+		fmt.Println(out)
+	})
+	t.Run("nil", func(t *testing.T) {
+		jsonStr := `{"input":{"pageSize":"20"}}`
+		out := gjson.Get(jsonStr, gjsonPath).String()
+		fmt.Println(out)
+	})
+	t.Run("true", func(t *testing.T) {
+		jsonStr := `{"input":{"pageSize":"20","valid":1}}`
+		out := gjson.Get(jsonStr, gjsonPath).String()
+		fmt.Println(out)
+	})
+
+}
 
 func TestJsonSchema(t *testing.T) {
 	str := `{"Meta":{"id":"form","version":"http://json-schema.org/draft-07/schema#","direction":"in"},"Items":[{"comment":"广告标题","type":"string","required":"true","description":"广告标题","example":"新年豪礼","dst":"title","fullname":"title"},{"comment":"广告主","type":"string","required":"true","description":"广告主","example":"123","dst":"advertiserId","fullname":"advertiserId"},{"comment":"可以投放开始时间","type":"string","required":"true","description":"可以投放开始时间","example":"2023-01-12 00:00:00","dst":"beginAt","fullname":"beginAt"},{"comment":"投放结束时间","type":"string","required":"true","description":"投放结束时间","example":"2023-01-30 00:00:00","dst":"endAt","fullname":"endAt"},{"comment":"页索引,0开始","type":"string","required":"true","description":"页索引,0开始","default":"0","dst":"index","fullname":"index"},{"comment":"每页数量","type":"string","required":"true","description":"每页数量","default":"10","dst":"size","fullname":"size"},{"comment":"文件格式","type":"string","required":"true","description":"文件格式","default":"application/json","dst":"content-type","fullname":"content-type"},{"comment":"访问服务的备案id","type":"string","required":"true","description":"访问服务的备案id","dst":"appid","fullname":"appid"},{"comment":"签名,外网访问需开启签名","type":"string","required":"true","description":"签名,外网访问需开启签名","dst":"signature","fullname":"signature"}]}`

@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+	_ "github.com/suifengpiao14/gjsonmodifier"
 	"github.com/suifengpiao14/kvstruct"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
@@ -711,6 +712,12 @@ func (l *Jsonschemaline) ToSturct() (structs Structs) {
 	return structs
 }
 
+//GjsonPathWithDefaultFormat 生成格式化的jsonpath，用来重新格式化数据,比如入参字段类型全为字符串，在format中标记了实际类型，可以通过该方法获取转换数据的gjson path，从入参中提取数据后，对应字段类型就以format为准，此处仅仅提供有创意的案例，更多可以依据该思路扩展
+func (l *Jsonschemaline) GjsonPathWithDefaultFormat() (gjsonPath string) {
+	gjsonPath = l.GjsonPath(FormatPathFnByFormat)
+	return gjsonPath
+}
+
 func (l *Jsonschemaline) GjsonPath(formatPath func(format string, src string, item *JsonschemalineItem) (path string)) (gjsonPath string) {
 	m := &map[string]interface{}{}
 	for _, item := range l.Items {
@@ -741,6 +748,18 @@ func (l *Jsonschemaline) GjsonPath(formatPath func(format string, src string, it
 	w := recursionWrite(m)
 	gjsonPath = fmt.Sprintf("{%s}", w.String())
 	return gjsonPath
+}
+
+//使用format 属性格式化转换后的路径
+func FormatPathFnByFormat(format string, src string, item *JsonschemalineItem) (path string) {
+	path = src
+	switch format {
+	case "int", "float", "number":
+		path = fmt.Sprintf("%s.@tonum", src)
+	case "bool":
+		path = fmt.Sprintf("%s.@tobool", src)
+	}
+	return path
 }
 
 // 生成路径
