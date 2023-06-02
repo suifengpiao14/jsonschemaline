@@ -638,8 +638,10 @@ func (t *Schema) structKeywordsFromTags(f reflect.StructField, parent *Schema, p
 	t.extraKeywords(extras)
 }
 func (t *Schema) Raw2Schema(lineSchema Jsonschemaline) {
-	t.Version = lineSchema.Meta.Version
-	t.ID = lineSchema.Meta.ID
+	if lineSchema.Meta != nil {
+		t.Version = lineSchema.Meta.Version
+		t.ID = lineSchema.Meta.ID
+	}
 
 	for _, item := range lineSchema.Items {
 		parent, propertyName := t.parseFullname(item.Fullname)

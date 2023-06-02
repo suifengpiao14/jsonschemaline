@@ -223,7 +223,7 @@ func IsMetaLine(lineTags kvstruct.KVS) bool {
 }
 
 type Jsonschemaline struct {
-	Meta  Meta
+	Meta  *Meta
 	Items []*JsonschemalineItem
 }
 
@@ -298,11 +298,16 @@ func ParseJsonschemaline(jsonschemalineBlock string) (jsonschemaline *Jsonschema
 			return nil, err
 		}
 		if meta != nil {
-			jsonschemaline.Meta = *meta
+			jsonschemaline.Meta = meta
 		} else if item != nil {
 			jsonschemaline.Items = append(jsonschemaline.Items, item)
 		}
 	}
+	if jsonschemaline.Meta == nil {
+		err := errors.Errorf("jsonschemaline ID required,got:%s", jsonschemalineBlock)
+		return nil, err
+	}
+
 	for _, item := range jsonschemaline.Items {
 		str := strings.ReplaceAll(item.Fullname, "[]", ".#")
 		srcOrDst := fmt.Sprintf("%s.%s", jsonschemaline.Meta.ID, str)
@@ -831,7 +836,7 @@ func JsonSchema2LineSchema(jsonschemaStr string) (lineschemaStr string, err erro
 // Json2gsonPatch
 func Json2lineSchema(jsonStr string) (out *Jsonschemaline, err error) {
 	out = &Jsonschemaline{
-		Meta: Meta{
+		Meta: &Meta{
 			Version:   "http://json-schema.org/draft-07/schema#",
 			ID:        "example",
 			Direction: LINE_SCHEMA_DIRECTION_IN,
