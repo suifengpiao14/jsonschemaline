@@ -713,12 +713,12 @@ func (l *Jsonschemaline) ToSturct() (structs Structs) {
 }
 
 //GjsonPathWithDefaultFormat 生成格式化的jsonpath，用来重新格式化数据,比如入参字段类型全为字符串，在format中标记了实际类型，可以通过该方法获取转换数据的gjson path，从入参中提取数据后，对应字段类型就以format为准，此处仅仅提供有创意的案例，更多可以依据该思路扩展
-func (l *Jsonschemaline) GjsonPathWithDefaultFormat() (gjsonPath string) {
-	gjsonPath = l.GjsonPath(FormatPathFnByFormat)
+func (l *Jsonschemaline) GjsonPathWithDefaultFormat(ignoreID bool) (gjsonPath string) {
+	gjsonPath = l.GjsonPath(ignoreID, FormatPathFnByFormat)
 	return gjsonPath
 }
 
-func (l *Jsonschemaline) GjsonPath(formatPath func(format string, src string, item *JsonschemalineItem) (path string)) (gjsonPath string) {
+func (l *Jsonschemaline) GjsonPath(ignoreID bool, formatPath func(format string, src string, item *JsonschemalineItem) (path string)) (gjsonPath string) {
 	m := &map[string]interface{}{}
 	for _, item := range l.Items {
 		dst, src, format := item.Dst, item.Src, item.Format
@@ -726,6 +726,14 @@ func (l *Jsonschemaline) GjsonPath(formatPath func(format string, src string, it
 			src = formatPath(format, src, item)
 		}
 		dst = strings.ReplaceAll(dst, ".#", "[]") //替换成[],方便后续遍历
+		if ignoreID {
+			switch l.Meta.Direction {
+			case LINE_SCHEMA_DIRECTION_IN:
+				src = strings.TrimPrefix(src, fmt.Sprintf("%s.", l.Meta.ID))
+			case LINE_SCHEMA_DIRECTION_OUT:
+				dst = strings.TrimPrefix(dst, fmt.Sprintf("%s.", l.Meta.ID))
+			}
+		}
 		arr := strings.Split(dst, ".")
 		l := len(arr)
 		var ref = new(map[string]interface{})

@@ -223,7 +223,7 @@ func TestGjsonPath(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	gjsonPath := lineschema.GjsonPath(nil)
+	gjsonPath := lineschema.GjsonPath(false, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -257,22 +257,41 @@ func TestGjsonPathWithDefaultFormat(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	gjsonPath := lineschema.GjsonPathWithDefaultFormat()
-	if err != nil {
-		panic(err)
-	}
+
 	t.Run("string", func(t *testing.T) {
 		jsonStr := `{"input":{"pageIndex":"0","pageSize":"20"}}`
+		gjsonPath := lineschema.GjsonPathWithDefaultFormat(false)
+		if err != nil {
+			panic(err)
+		}
 		out := gjson.Get(jsonStr, gjsonPath).String()
 		fmt.Println(out)
 	})
 	t.Run("nil", func(t *testing.T) {
 		jsonStr := `{"input":{"pageSize":"20"}}`
+		gjsonPath := lineschema.GjsonPathWithDefaultFormat(false)
+		if err != nil {
+			panic(err)
+		}
 		out := gjson.Get(jsonStr, gjsonPath).String()
 		fmt.Println(out)
 	})
 	t.Run("true", func(t *testing.T) {
 		jsonStr := `{"input":{"pageSize":"20","valid":1}}`
+		gjsonPath := lineschema.GjsonPathWithDefaultFormat(false)
+		if err != nil {
+			panic(err)
+		}
+		out := gjson.Get(jsonStr, gjsonPath).String()
+		fmt.Println(out)
+	})
+
+	t.Run("true-ingnoreID", func(t *testing.T) {
+		jsonStr := `{"pageSize":"20","valid":1}`
+		gjsonPath := lineschema.GjsonPathWithDefaultFormat(true)
+		if err != nil {
+			panic(err)
+		}
 		out := gjson.Get(jsonStr, gjsonPath).String()
 		fmt.Println(out)
 	})
