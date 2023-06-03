@@ -250,12 +250,12 @@ func TestGjsonPath2(t *testing.T) {
 
 func TestGjsonPathWithDefaultFormatOutput(t *testing.T) {
 	inputLineschema := `version=http://json-schema.org/draft-07/schema,id=output,direction=out
-	fullname=pageIndex,dst=pageIndex,format=number,required
-	fullname=pageSize,dst=pageSize,format=number,required
-	fullname=valid,dst=valid,format=bool,required
-	fullname=items[].id,dst=items.#.id,format=int,required
-	fullname=items[].title,dst=items.#.title,required
-	fullname=items[].status,dst=items.#.status,format=bool,required
+	fullname=pageIndex,src=pageIndex,format=number,required
+	fullname=pageSize,src=pageSize,format=number,required
+	fullname=valid,src=valid,format=bool,required
+	fullname=items[].id,src=items.#.id,format=int,required
+	fullname=items[].title,src=items.#.title,required
+	fullname=items[].status,src=items.#.status,format=bool,required
 	`
 	lineschema, err := jsonschemaline.ParseJsonschemaline(inputLineschema)
 	if err != nil {

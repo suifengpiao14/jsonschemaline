@@ -734,7 +734,13 @@ func (l *Jsonschemaline) GjsonPath(ignoreID bool, formatPath func(format string,
 		dst, src, format := item.Dst, item.Src, item.Format
 		dst = strings.ReplaceAll(dst, ".#", "[]") //替换成[],方便后续遍历
 		if ignoreID {
-			src = strings.TrimPrefix(src, fmt.Sprintf("%s.", l.Meta.ID))
+			switch l.Meta.Direction {
+			case LINE_SCHEMA_DIRECTION_IN:
+				src = strings.TrimPrefix(src, fmt.Sprintf("%s.", l.Meta.ID))
+			case LINE_SCHEMA_DIRECTION_OUT:
+				dst = strings.TrimPrefix(dst, fmt.Sprintf("%s.", l.Meta.ID))
+			}
+
 		}
 		if formatPath != nil {
 			src = formatPath(format, src, item)
