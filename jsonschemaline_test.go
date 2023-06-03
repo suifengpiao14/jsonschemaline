@@ -247,19 +247,45 @@ func TestGjsonPath2(t *testing.T) {
 	out := gjson.Get(jsonStr, gjsonPath).String()
 	fmt.Println(out)
 }
-func TestGjsonPathWithDefaultFormat(t *testing.T) {
-	line := `version=http://json-schema.org/draft-07/schema,id=input,direction=in
+
+func TestGjsonPathWithDefaultFormatOutput(t *testing.T) {
+	inputLineschema := `version=http://json-schema.org/draft-07/schema,id=output,direction=out
 	fullname=pageIndex,dst=pageIndex,format=number,required
 	fullname=pageSize,dst=pageSize,format=number,required
 	fullname=valid,dst=valid,format=bool,required
+	fullname=items[].id,dst=items.#.id,format=int,required
+	fullname=items[].title,dst=items.#.title,required
+	fullname=items[].status,dst=items.#.status,format=bool,required
 	`
-	lineschema, err := jsonschemaline.ParseJsonschemaline(line)
+	lineschema, err := jsonschemaline.ParseJsonschemaline(inputLineschema)
+	if err != nil {
+		panic(err)
+	}
+	t.Run("string", func(t *testing.T) {
+		jsonStr := `{"pageIndex":"0","pageSize":"20","items":[{"id":"1","title":"标题1","status":true},{"id":"2","title":"标题2","status":false}]}`
+		gjsonPath := lineschema.GjsonPathWithDefaultFormat(true)
+		if err != nil {
+			panic(err)
+		}
+		out := gjson.Get(jsonStr, gjsonPath).String()
+		fmt.Println(out)
+	})
+}
+func TestGjsonPathWithDefaultFormatInput(t *testing.T) {
+	inputLineschema := `version=http://json-schema.org/draft-07/schema,id=input,direction=in
+	fullname=pageIndex,dst=pageIndex,format=number,required
+	fullname=pageSize,dst=pageSize,format=number,required
+	fullname=valid,dst=valid,format=bool,required
+	fullname=items[].id,dst=items.#.id,format=int,required
+	fullname=items[].title,dst=items.#.title,required
+	`
+	lineschema, err := jsonschemaline.ParseJsonschemaline(inputLineschema)
 	if err != nil {
 		panic(err)
 	}
 
 	t.Run("string", func(t *testing.T) {
-		jsonStr := `{"input":{"pageIndex":"0","pageSize":"20"}}`
+		jsonStr := `{"input":{"pageIndex":"0","pageSize":"20","items":[{"id":"1","title":"标题1"},{"id":"2","title":"标题2"}]}}`
 		gjsonPath := lineschema.GjsonPathWithDefaultFormat(false)
 		if err != nil {
 			panic(err)
