@@ -727,6 +727,10 @@ func (l *Jsonschemaline) GjsonPathWithDefaultFormat(ignoreID bool) (gjsonPath st
 func (l *Jsonschemaline) GjsonPath(ignoreID bool, formatPath func(format string, src string, item *JsonschemalineItem) (path string)) (gjsonPath string) {
 	m := &map[string]interface{}{}
 	for _, item := range l.Items {
+		switch strings.ToLower(item.Type) {
+		case "array", "object":
+			continue
+		}
 		dst, src, format := item.Dst, item.Src, item.Format
 		dst = strings.ReplaceAll(dst, ".#", "[]") //替换成[],方便后续遍历
 		if ignoreID {
