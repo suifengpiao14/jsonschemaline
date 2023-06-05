@@ -642,7 +642,7 @@ func (l *Jsonschemaline) ToSturct() (structs Structs) {
 			parentStruct, _ := structs.Get(parentStructName) // 一定存在
 			baseName := nameArr[i]
 			realBaseName := strings.TrimSuffix(baseName, arraySuffix)
-			isArray := baseName != realBaseName
+			isArray := baseName != realBaseName || item.Type == "array"
 			attrName := helpers.ToCamel(realBaseName)
 			comment := item.Comments
 			if comment == "" {
@@ -668,22 +668,31 @@ func (l *Jsonschemaline) ToSturct() (structs Structs) {
 				structs.AddIngore(subStruct)
 				continue
 			}
+			format := item.Format
+
+			switch format { // 格式化format
+			case "number":
+				format = "int"
+			case "float":
+				format = "float64"
+			}
 
 			// 最后一个
 			typ := item.Type
-			if typ == "string" {
-				switch item.Format {
-				case "int", "number":
-					typ = "int"
-				case "float":
-					typ = "float64"
-				}
+			if typ == "string" && format != "" {
+				typ = format
 			}
 			tag := fmt.Sprintf(`json:"%s"`, helpers.ToLowerCamel(attrName))
 			if l.Meta.Direction == LINE_SCHEMA_DIRECTION_IN && !item.Required { //当作入参时,非必填字断,使用引用
 				typ = fmt.Sprintf("*%s", typ)
 			}
 			if isArray {
+				if typ == "array" {
+					typ = "interface{}"
+					if format != "" {
+						typ = format
+					}
+				}
 				typ = fmt.Sprintf("[]%s", typ)
 			}
 
@@ -733,6 +742,9 @@ func (l *Jsonschemaline) GjsonPath(ignoreID bool, formatPath func(format string,
 			continue
 		}
 		dst, src, format := item.Dst, item.Src, item.Format
+		if strings.Contains(dst, "enumNames") {
+			fmt.Println(dst)
+		}
 		dst = strings.ReplaceAll(dst, ".#", "[]") //替换成[],方便后续遍历
 		if ignoreID {
 			switch l.Meta.Direction {
@@ -801,18 +813,29 @@ func recursionWrite(m *map[string]interface{}) (w bytes.Buffer) {
 		writeComma = true
 		ref, ok := v.(*map[string]interface{})
 		if !ok {
+			k = strings.TrimSuffix(k, "[]")
 			w.WriteString(fmt.Sprintf("%s:%s", k, v))
 			continue
 		}
 		subw := recursionWrite(ref)
+		isArray := false
+		subwKey := subw.String()
+		var subStr string
 		if strings.HasSuffix(k, "[]") {
+			isArray = true
 			k = strings.TrimRight(k, "[]")
-			subStr := fmt.Sprintf("%s:{%s}|@group", k, subw.String())
-			w.WriteString(subStr)
-		} else {
-			subStr := fmt.Sprintf("%s:{%s}", k, subw.String())
-			w.WriteString(subStr)
 		}
+
+		if strings.Contains(subwKey, ".#.") {
+			isArray = true
+		}
+
+		if isArray {
+			subStr = fmt.Sprintf("%s:{%s}|@group", k, subwKey)
+		} else {
+			subStr = fmt.Sprintf("%s:{%s}", k, subwKey)
+		}
+		w.WriteString(subStr)
 	}
 	return w
 }
