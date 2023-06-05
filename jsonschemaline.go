@@ -642,7 +642,7 @@ func (l *Jsonschemaline) ToSturct() (structs Structs) {
 			parentStruct, _ := structs.Get(parentStructName) // 一定存在
 			baseName := nameArr[i]
 			realBaseName := strings.TrimSuffix(baseName, arraySuffix)
-			isArray := baseName != realBaseName
+			isArray := baseName != realBaseName || item.Type == "array"
 			attrName := helpers.ToCamel(realBaseName)
 			comment := item.Comments
 			if comment == "" {
@@ -668,22 +668,31 @@ func (l *Jsonschemaline) ToSturct() (structs Structs) {
 				structs.AddIngore(subStruct)
 				continue
 			}
+			format := item.Format
+
+			switch format { // 格式化format
+			case "number":
+				format = "int"
+			case "float":
+				format = "float64"
+			}
 
 			// 最后一个
 			typ := item.Type
-			if typ == "string" {
-				switch item.Format {
-				case "int", "number":
-					typ = "int"
-				case "float":
-					typ = "float64"
-				}
+			if typ == "string" && format != "" {
+				typ = format
 			}
 			tag := fmt.Sprintf(`json:"%s"`, helpers.ToLowerCamel(attrName))
 			if l.Meta.Direction == LINE_SCHEMA_DIRECTION_IN && !item.Required { //当作入参时,非必填字断,使用引用
 				typ = fmt.Sprintf("*%s", typ)
 			}
 			if isArray {
+				if typ == "array" {
+					typ = "interface{}"
+					if format != "" {
+						typ = format
+					}
+				}
 				typ = fmt.Sprintf("[]%s", typ)
 			}
 
@@ -801,18 +810,29 @@ func recursionWrite(m *map[string]interface{}) (w bytes.Buffer) {
 		writeComma = true
 		ref, ok := v.(*map[string]interface{})
 		if !ok {
+			k = strings.TrimSuffix(k, "[]")
 			w.WriteString(fmt.Sprintf("%s:%s", k, v))
 			continue
 		}
 		subw := recursionWrite(ref)
+		isArray := false
+		subwKey := subw.String()
+		var subStr string
 		if strings.HasSuffix(k, "[]") {
+			isArray = true
 			k = strings.TrimRight(k, "[]")
-			subStr := fmt.Sprintf("%s:{%s}|@group", k, subw.String())
-			w.WriteString(subStr)
-		} else {
-			subStr := fmt.Sprintf("%s:{%s}", k, subw.String())
-			w.WriteString(subStr)
 		}
+
+		if strings.Contains(subwKey, ".#.") {
+			isArray = true
+		}
+
+		if isArray {
+			subStr = fmt.Sprintf("%s:{%s}|@group", k, subwKey)
+		} else {
+			subStr = fmt.Sprintf("%s:{%s}", k, subwKey)
+		}
+		w.WriteString(subStr)
 	}
 	return w
 }
@@ -929,4 +949,61 @@ func parseOneJsonKey2Line(rv reflect.Value, fullname string) (items []*Jsonschem
 		return parseOneJsonKey2Line(rv, fullname)
 	}
 	return items
+}
+
+const (
+	//jsonschema 本身支持的格式描述(后台表单经常用到)
+	JsonSchemaLineSchema = `
+	version=http://json-schema.org/draft-07/schema#,direction=in,id=jsonschema
+	fullname=comment,dst=comment,title=备注
+	fullname=type,dst=type,title=类型
+	fullname=enum,dst=enum,type=array,format=string,title=枚举值
+	fullname=enumNames,dst=enumNames,type=array,format=string,title=枚举值标题
+	fullname=const,dst=const,title=常量
+	fullname=multipleOf,dst=multipleOf,format=int,title=多值
+	fullname=maximum,dst=maximum,format=int,title=最大值
+	fullname=exclusiveMaximum,dst=exclusiveMaximum,format=bool,title=是否包含最大值
+	fullname=minimum,dst=minimum,format=int,title=最小值
+	fullname=exclusiveMinimum,dst=exclusiveMinimum,format=bool,title=是否包含最小值
+	fullname=maxLength,dst=maxLength,format=int,title=最大长度
+	fullname=minLength,dst=minLength,format=int,title=最小长度
+	fullname=pattern,dst=pattern,title=匹配格式
+	fullname=maxItems,dst=maxItems,format=int,title=最大项数
+	fullname=minItems,dst=minItems,format=int,title=最小项数
+	fullname=uniqueItems,dst=uniqueItems,format=bool,title=数组唯一
+	fullname=maxContains,dst=maxContains,format=uint,title=符合Contains规则最大数量
+	fullname=minContains,dst=minContains,format=uint,title=符合Contains规则最小数量
+	fullname=maxProperties,dst=maxProperties,format=int,title=对象最多属性个数
+	fullname=minProperties,dst=minProperties,format=int,title=对象最少属性个数
+	fullname=required,dst=required,format=bool,title=是否必须
+	fullname=format,dst=format,title=类型格式
+	fullname=contentEncoding,dst=contentEncoding,title=内容编码
+	fullname=contentMediaType,dst=contentMediaType,title=内容格式
+	fullname=title,dst=title,title=标题
+	fullname=description,dst=description,title=描述
+	fullname=default,dst=default,title=默认值
+	fullname=deprecated,dst=deprecated,format=bool,title=是否弃用
+	fullname=readOnly,dst=readOnly,format=bool,title=只读
+	fullname=writeOnly,dst=writeOnly,format=bool,title=只写
+	fullname=example,dst=example,title=案例
+	fullname=examples,dst=examples,title=案例集合
+	fullname=src,dst=src,title=源数据
+	fullname=dst,dst=dst,title=目标数据
+	fullname=fullname,dst=fullname,title=名称/全称
+	fullname=allowEmptyValue,dst=allowEmptyValue,format=bool,title=是否可以为空
+	`
+)
+
+//GetJsonSchemaScheme 返回jsonschema本身的schema
+func GetJsonSchemaSchema() (schema string) {
+	lineschema, err := ParseJsonschemaline(JsonSchemaLineSchema)
+	if err != nil {
+		panic(err)
+	}
+	b, err := lineschema.JsonSchema()
+	if err != nil {
+		panic(err)
+	}
+	schema = string(b)
+	return schema
 }
