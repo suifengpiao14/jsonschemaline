@@ -11,6 +11,7 @@ import (
 
 	"github.com/pkg/errors"
 	_ "github.com/suifengpiao14/gjsonmodifier"
+	"github.com/suifengpiao14/helpers"
 	"github.com/suifengpiao14/kvstruct"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
@@ -486,7 +487,7 @@ func (l *Jsonschemaline) Jsonschemaline2json() (jsonStr string, err error) {
 	return l.JsonExample()
 }
 
-//DefaultJson 获取默认值
+// DefaultJson 获取默认值
 func (l *Jsonschemaline) DefaultJson() (defaultData string, err error) {
 	defaultJson, err := ParseDefaultJson(*l)
 	if err != nil {
@@ -583,7 +584,7 @@ func (s *Structs) AddIngore(structs ...*Struct) {
 	}
 }
 
-//Copy 深度复制
+// Copy 深度复制
 func (s Structs) Copy() (newStructs Structs) {
 	newStructs = make(Structs, 0)
 	for _, struc := range s {
@@ -608,7 +609,7 @@ func (s *Structs) AddNameprefix(nameprefix string) {
 	}
 	for _, struc := range *s {
 		baseName := struc.Name
-		struc.Name = ToCamel(fmt.Sprintf("%s_%s", nameprefix, baseName))
+		struc.Name = helpers.ToCamel(fmt.Sprintf("%s_%s", nameprefix, baseName))
 		for _, attr := range allAttrs {
 			if strings.HasSuffix(attr.Type, baseName) {
 				attr.Type = fmt.Sprintf("%s%s", attr.Type[:len(attr.Type)-len(baseName)], struc.Name)
@@ -621,7 +622,7 @@ func (l *Jsonschemaline) ToSturct() (structs Structs) {
 	arraySuffix := "[]"
 	structs = make(Structs, 0)
 	id := string(l.Meta.ID)
-	rootStructName := ToCamel(id)
+	rootStructName := helpers.ToCamel(id)
 	rootStruct := &Struct{
 		IsRoot:     true,
 		Name:       rootStructName,
@@ -637,18 +638,18 @@ func (l *Jsonschemaline) ToSturct() (structs Structs) {
 		nameArr := strings.Split(withRootFullname, ".")
 		nameCount := len(nameArr)
 		for i := 1; i < nameCount; i++ { //i从1开始,0 为root,已处理
-			parentStructName := ToCamel(strings.Join(nameArr[:i], "_"))
+			parentStructName := helpers.ToCamel(strings.Join(nameArr[:i], "_"))
 			parentStruct, _ := structs.Get(parentStructName) // 一定存在
 			baseName := nameArr[i]
 			realBaseName := strings.TrimSuffix(baseName, arraySuffix)
 			isArray := baseName != realBaseName
-			attrName := ToCamel(realBaseName)
+			attrName := helpers.ToCamel(realBaseName)
 			comment := item.Comments
 			if comment == "" {
 				comment = item.Description
 			}
 			if i < nameCount-1 { // 非最后一个,即为上级的attr,又为下级的struct
-				subStructName := ToCamel(strings.Join(nameArr[:i+1], "_"))
+				subStructName := helpers.ToCamel(strings.Join(nameArr[:i+1], "_"))
 				attrType := subStructName
 				if isArray {
 					attrType = fmt.Sprintf("[]%s", attrType)
@@ -656,7 +657,7 @@ func (l *Jsonschemaline) ToSturct() (structs Structs) {
 				attr := StructAttr{
 					Name: attrName,
 					Type: attrType,
-					Tag:  fmt.Sprintf(`json:"%s"`, ToLowerCamel(attrName)),
+					Tag:  fmt.Sprintf(`json:"%s"`, helpers.ToLowerCamel(attrName)),
 					//Comment: comment,// 符合类型comment 无意义，不增加
 				}
 				parentStruct.AddAttrReplace(attr)
@@ -678,7 +679,7 @@ func (l *Jsonschemaline) ToSturct() (structs Structs) {
 					typ = "float64"
 				}
 			}
-			tag := fmt.Sprintf(`json:"%s"`, ToLowerCamel(attrName))
+			tag := fmt.Sprintf(`json:"%s"`, helpers.ToLowerCamel(attrName))
 			if l.Meta.Direction == LINE_SCHEMA_DIRECTION_IN && !item.Required { //当作入参时,非必填字断,使用引用
 				typ = fmt.Sprintf("*%s", typ)
 			}
@@ -687,7 +688,7 @@ func (l *Jsonschemaline) ToSturct() (structs Structs) {
 			}
 
 			newAttr := &StructAttr{
-				Name:    ToCamel(attrName),
+				Name:    helpers.ToCamel(attrName),
 				Type:    typ,
 				Tag:     tag,
 				Comment: comment,
@@ -712,19 +713,26 @@ func (l *Jsonschemaline) ToSturct() (structs Structs) {
 	return structs
 }
 
-//GjsonPathWithDefaultFormat 生成格式化的jsonpath，用来重新格式化数据,比如入参字段类型全为字符串，在format中标记了实际类型，可以通过该方法获取转换数据的gjson path，从入参中提取数据后，对应字段类型就以format为准，此处仅仅提供有创意的案例，更多可以依据该思路扩展
+// GjsonPathWithDefaultFormat 生成格式化的jsonpath，用来重新格式化数据,比如入参字段类型全为字符串，在format中标记了实际类型，可以通过该方法获取转换数据的gjson path，从入参中提取数据后，对应字段类型就以format为准，此处仅仅提供有创意的案例，更多可以依据该思路扩展
 func (l *Jsonschemaline) GjsonPathWithDefaultFormat(ignoreID bool) (gjsonPath string) {
-	gjsonPath = l.GjsonPath(ignoreID, FormatPathFnByFormat)
+	switch l.Meta.Direction {
+	case LINE_SCHEMA_DIRECTION_IN:
+		gjsonPath = l.GjsonPath(ignoreID, FormatPathFnByFormatIn)
+	case LINE_SCHEMA_DIRECTION_OUT:
+		gjsonPath = l.GjsonPath(ignoreID, FormatPathFnByFormatOut)
+	}
+
 	return gjsonPath
 }
 
 func (l *Jsonschemaline) GjsonPath(ignoreID bool, formatPath func(format string, src string, item *JsonschemalineItem) (path string)) (gjsonPath string) {
 	m := &map[string]interface{}{}
 	for _, item := range l.Items {
-		dst, src, format := item.Dst, item.Src, item.Format
-		if formatPath != nil {
-			src = formatPath(format, src, item)
+		switch strings.ToLower(item.Type) {
+		case "array", "object": // 数组、对象需要遍历内部结构,忽略外部的path
+			continue
 		}
+		dst, src, format := item.Dst, item.Src, item.Format
 		dst = strings.ReplaceAll(dst, ".#", "[]") //替换成[],方便后续遍历
 		if ignoreID {
 			switch l.Meta.Direction {
@@ -733,6 +741,10 @@ func (l *Jsonschemaline) GjsonPath(ignoreID bool, formatPath func(format string,
 			case LINE_SCHEMA_DIRECTION_OUT:
 				dst = strings.TrimPrefix(dst, fmt.Sprintf("%s.", l.Meta.ID))
 			}
+
+		}
+		if formatPath != nil {
+			src = formatPath(format, src, item)
 		}
 		arr := strings.Split(dst, ".")
 		l := len(arr)
@@ -758,14 +770,23 @@ func (l *Jsonschemaline) GjsonPath(ignoreID bool, formatPath func(format string,
 	return gjsonPath
 }
 
-//使用format 属性格式化转换后的路径
-func FormatPathFnByFormat(format string, src string, item *JsonschemalineItem) (path string) {
+// 使用format 属性格式化转换后的路径
+func FormatPathFnByFormatIn(format string, src string, item *JsonschemalineItem) (path string) {
 	path = src
 	switch format {
 	case "int", "float", "number":
 		path = fmt.Sprintf("%s.@tonum", src)
 	case "bool":
 		path = fmt.Sprintf("%s.@tobool", src)
+	}
+	return path
+}
+
+// 使用format 属性格式化转换后的路径
+func FormatPathFnByFormatOut(format string, src string, item *JsonschemalineItem) (path string) {
+	path = src
+	if item.Type == "string" {
+		path = fmt.Sprintf("%s.@tostring", src)
 	}
 	return path
 }
