@@ -742,9 +742,6 @@ func (l *Jsonschemaline) GjsonPath(ignoreID bool, formatPath func(format string,
 			continue
 		}
 		dst, src, format := item.Dst, item.Src, item.Format
-		if strings.Contains(dst, "enumNames") {
-			fmt.Println(dst)
-		}
 		dst = strings.ReplaceAll(dst, ".#", "[]") //替换成[],方便后续遍历
 		if ignoreID {
 			switch l.Meta.Direction {
