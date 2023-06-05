@@ -1388,25 +1388,74 @@ func SplitMultilineSchema(lineSchema string) []kvstruct.KVS {
 // This way, we prevent splitting regexes
 func SplitOnUnescapedCommas(tagString string) []string {
 	ret := make([]string, 0)
-	separated := strings.Split(tagString, ",")
-	ret = append(ret, separated[0])
-	i := 0
-	for _, nextTag := range separated[1:] {
-		if len(ret[i]) == 0 {
-			ret = append(ret, nextTag)
+	skip := newSkipCommas(defaultSkipTokens)
+	var w bytes.Buffer
+	l := len(tagString)
+	for i := 0; i < l; i++ {
+		char := tagString[i]
+		if l > i+1 && char == '\\' && tagString[i+1] == ',' {
 			i++
+			w.WriteString(",")
+			continue // \,情况需要忽略 \字符
+		}
+		isDelimiter := skip.IsDelimiter(char)
+		if isDelimiter {
+			ret = append(ret, w.String())
+			w.Reset()
 			continue
 		}
 
-		if ret[i][len(ret[i])-1] == '\\' {
-			ret[i] = ret[i][:len(ret[i])-1] + "," + nextTag
-		} else {
-			ret = append(ret, nextTag)
-			i++
+		w.WriteByte(char)
+	}
+	if w.Len() > 0 {
+		ret = append(ret, w.String())
+	}
+	return ret
+}
+
+type skipToken struct {
+	open  byte
+	close byte
+}
+type skipTokens []skipToken
+type skipCommas struct {
+	stack        skipTokens
+	configTokens skipTokens
+}
+
+func newSkipCommas(configTokens skipTokens) (s *skipCommas) {
+	return &skipCommas{
+		configTokens: configTokens,
+	}
+}
+
+// 当, 在字符串内,或者json数据中或者前一个字符为\时,不可以作为分隔符
+func (s *skipCommas) IsDelimiter(char byte) (ok bool) {
+	l := len(s.stack)
+	if char == ',' && l == 0 {
+		return true
+	}
+	if l > 0 && s.stack[l-1].close == char { // 关闭 \区间
+		s.stack = s.stack[:l-1]
+		return false
+	}
+
+	// 开启字符串、json、区间
+	for _, skipToken := range s.configTokens {
+		if skipToken.open == char {
+			s.stack = append(s.stack, skipToken)
+			return false
 		}
 	}
 
-	return ret
+	return false
+}
+
+var defaultSkipTokens = skipTokens{
+	skipToken{open: '"', close: '"'},
+	skipToken{open: '`', close: '`'},
+	skipToken{open: '{', close: '}'},
+	skipToken{open: '[', close: ']'},
 }
 
 func fullyQualifiedTypeName(t reflect.Type) string {
