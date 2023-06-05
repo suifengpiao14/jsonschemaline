@@ -497,3 +497,8 @@ func TestAddNameprefix(t *testing.T) {
 	newStructs.AddNameprefix(nameprefix)
 	fmt.Println(newStructs)
 }
+
+func TestGetJsonSchemaSchema(t *testing.T) {
+	schema := jsonschemaline.GetJsonSchemaSchema()
+	fmt.Println(schema)
+}
