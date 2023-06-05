@@ -1452,10 +1452,10 @@ func (s *skipCommas) IsDelimiter(char byte) (ok bool) {
 }
 
 var defaultSkipTokens = skipTokens{
-	skipToken{open: '"', close: '"'},
-	skipToken{open: '`', close: '`'},
-	skipToken{open: '{', close: '}'},
-	skipToken{open: '[', close: ']'},
+	{open: '"', close: '"'},
+	{open: '`', close: '`'},
+	{open: '{', close: '}'},
+	{open: '[', close: ']'},
 }
 
 func fullyQualifiedTypeName(t reflect.Type) string {
