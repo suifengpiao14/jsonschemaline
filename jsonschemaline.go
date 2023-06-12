@@ -994,7 +994,7 @@ const (
 	`
 )
 
-//GetJsonSchemaScheme 返回jsonschema本身的schema
+// GetJsonSchemaScheme 返回jsonschema本身的schema
 func GetJsonSchemaSchema() (schema string) {
 	lineschema, err := ParseJsonschemaline(JsonSchemaLineSchema)
 	if err != nil {
