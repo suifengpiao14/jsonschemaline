@@ -7,8 +7,8 @@ require (
 	github.com/iancoleman/orderedmap v0.2.0
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.8.1
+	github.com/suifengpiao14/funcs v0.0.3
 	github.com/suifengpiao14/gjsonmodifier v0.1.7
-	github.com/suifengpiao14/helpers v0.0.2
 	github.com/suifengpiao14/kvstruct v0.0.13
 	github.com/tidwall/gjson v1.14.4
 	github.com/tidwall/sjson v1.2.5
