@@ -19,7 +19,7 @@ import (
 
 	"github.com/iancoleman/orderedmap"
 	"github.com/pkg/errors"
-	"github.com/suifengpiao14/helpers"
+	"github.com/suifengpiao14/funcs"
 	"github.com/suifengpiao14/kvstruct"
 )
 
@@ -277,7 +277,7 @@ func (r *Reflector) ReflectFromType(t reflect.Type) *Schema {
 			}
 		}
 		if baseSchemaID != EmptyID {
-			s.ID = baseSchemaID.Add(helpers.SnakeCase(name))
+			s.ID = baseSchemaID.Add(funcs.SnakeCase(name))
 		}
 	}
 
@@ -728,7 +728,7 @@ func OneRawLineSchema(schema *Schema, required []string) (oneRaw string, err err
 		rt := rv.Type()
 		for i := 0; i < rt.NumField(); i++ {
 			name := rt.Field(i).Name
-			name = helpers.ToLowerCamel(name)
+			name = funcs.ToLowerCamel(name)
 			if name == "type" {
 				continue
 			}

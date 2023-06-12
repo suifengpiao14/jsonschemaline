@@ -10,8 +10,8 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+	"github.com/suifengpiao14/funcs"
 	_ "github.com/suifengpiao14/gjsonmodifier"
-	"github.com/suifengpiao14/helpers"
 	"github.com/suifengpiao14/kvstruct"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
@@ -609,7 +609,7 @@ func (s *Structs) AddNameprefix(nameprefix string) {
 	}
 	for _, struc := range *s {
 		baseName := struc.Name
-		struc.Name = helpers.ToCamel(fmt.Sprintf("%s_%s", nameprefix, baseName))
+		struc.Name = funcs.ToCamel(fmt.Sprintf("%s_%s", nameprefix, baseName))
 		for _, attr := range allAttrs {
 			if strings.HasSuffix(attr.Type, baseName) {
 				attr.Type = fmt.Sprintf("%s%s", attr.Type[:len(attr.Type)-len(baseName)], struc.Name)
@@ -622,7 +622,7 @@ func (l *Jsonschemaline) ToSturct() (structs Structs) {
 	arraySuffix := "[]"
 	structs = make(Structs, 0)
 	id := string(l.Meta.ID)
-	rootStructName := helpers.ToCamel(id)
+	rootStructName := funcs.ToCamel(id)
 	rootStruct := &Struct{
 		IsRoot:     true,
 		Name:       rootStructName,
@@ -638,18 +638,18 @@ func (l *Jsonschemaline) ToSturct() (structs Structs) {
 		nameArr := strings.Split(withRootFullname, ".")
 		nameCount := len(nameArr)
 		for i := 1; i < nameCount; i++ { //i从1开始,0 为root,已处理
-			parentStructName := helpers.ToCamel(strings.Join(nameArr[:i], "_"))
+			parentStructName := funcs.ToCamel(strings.Join(nameArr[:i], "_"))
 			parentStruct, _ := structs.Get(parentStructName) // 一定存在
 			baseName := nameArr[i]
 			realBaseName := strings.TrimSuffix(baseName, arraySuffix)
 			isArray := baseName != realBaseName || item.Type == "array"
-			attrName := helpers.ToCamel(realBaseName)
+			attrName := funcs.ToCamel(realBaseName)
 			comment := item.Comments
 			if comment == "" {
 				comment = item.Description
 			}
 			if i < nameCount-1 { // 非最后一个,即为上级的attr,又为下级的struct
-				subStructName := helpers.ToCamel(strings.Join(nameArr[:i+1], "_"))
+				subStructName := funcs.ToCamel(strings.Join(nameArr[:i+1], "_"))
 				attrType := subStructName
 				if isArray {
 					attrType = fmt.Sprintf("[]%s", attrType)
@@ -657,7 +657,7 @@ func (l *Jsonschemaline) ToSturct() (structs Structs) {
 				attr := StructAttr{
 					Name: attrName,
 					Type: attrType,
-					Tag:  fmt.Sprintf(`json:"%s"`, helpers.ToLowerCamel(attrName)),
+					Tag:  fmt.Sprintf(`json:"%s"`, funcs.ToLowerCamel(attrName)),
 					//Comment: comment,// 符合类型comment 无意义，不增加
 				}
 				parentStruct.AddAttrReplace(attr)
@@ -682,7 +682,7 @@ func (l *Jsonschemaline) ToSturct() (structs Structs) {
 			if typ == "string" && format != "" {
 				typ = format
 			}
-			tag := fmt.Sprintf(`json:"%s"`, helpers.ToLowerCamel(attrName))
+			tag := fmt.Sprintf(`json:"%s"`, funcs.ToLowerCamel(attrName))
 			if l.Meta.Direction == LINE_SCHEMA_DIRECTION_IN && !item.Required { //当作入参时,非必填字断,使用引用
 				typ = fmt.Sprintf("*%s", typ)
 			}
@@ -697,7 +697,7 @@ func (l *Jsonschemaline) ToSturct() (structs Structs) {
 			}
 
 			newAttr := &StructAttr{
-				Name:    helpers.ToCamel(attrName),
+				Name:    funcs.ToCamel(attrName),
 				Type:    typ,
 				Tag:     tag,
 				Comment: comment,

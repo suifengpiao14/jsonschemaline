@@ -39,10 +39,10 @@ github.com/stretchr/testify v1.7.1/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/
 github.com/stretchr/testify v1.8.0/go.mod h1:yNjHg4UonilssWZ8iaSj1OCr/vHnekPRkoO+kdMU+MU=
 github.com/stretchr/testify v1.8.1 h1:w7B6lhMri9wdJUVmEZPGGhZzrYTPvgJArz7wNPgYKsk=
 github.com/stretchr/testify v1.8.1/go.mod h1:w2LPCIKwWwSfY2zedu0+kehJoqGctiVI29o6fzry7u4=
+github.com/suifengpiao14/funcs v0.0.3 h1:dqfsV3QKvSx3vfwxpwPdfLiA//x7Gd3EJ+wkmlb3pvk=
+github.com/suifengpiao14/funcs v0.0.3/go.mod h1:gujdeedgAeiM+AE3seHJR2RSTwiIzEogNQSyZ9YbHQA=
 github.com/suifengpiao14/gjsonmodifier v0.1.7 h1:IQKorZk5np6mXACZFsPIzzfHLnetxsiiBA73/wvB/Ls=
 github.com/suifengpiao14/gjsonmodifier v0.1.7/go.mod h1:bwhORc92wKB1Ms1REvG5IGgBLLEjhOt/hu/XmtQWuKw=
-github.com/suifengpiao14/helpers v0.0.2 h1:UZWPjNoU+s2SHGyGNTWn0KP4N8evHbzoTE2f9orEb7w=
-github.com/suifengpiao14/helpers v0.0.2/go.mod h1:Imh7HtKgXA3CXOLv2XQ5zEQMckDadqzu07mypfge1qo=
 github.com/suifengpiao14/kvstruct v0.0.13 h1:zuTX1eK8q2ucDE8/YN4KvdwCXGhCNCya1i5tJc3sWJQ=
 github.com/suifengpiao14/kvstruct v0.0.13/go.mod h1:v3hf2KPrafdYJJ49M5RWLfpYS8Z2fsJO/rAGMnIBYn8=
 github.com/tidwall/gjson v1.14.2/go.mod h1:/wbyibRr2FHMks5tjHJ5F8dMZh3AcwJEMf5vlfC0lxk=
