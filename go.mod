@@ -9,7 +9,7 @@ require (
 	github.com/stretchr/testify v1.8.1
 	github.com/suifengpiao14/funcs v0.0.3
 	github.com/suifengpiao14/gjsonmodifier v0.1.7
-	github.com/suifengpiao14/kvstruct v0.0.13
+	github.com/suifengpiao14/kvstruct v0.0.14
 	github.com/tidwall/gjson v1.14.4
 	github.com/tidwall/sjson v1.2.5
 )

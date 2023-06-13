@@ -13,7 +13,18 @@ import (
 	"github.com/tidwall/sjson"
 )
 
-var jsonStr = `{"$schema":"http://json-schema.org/draft-07/schema#","$id":"execAPIInquiryScreenIdentifyUpdate","type":"object","required":["config"],"properties":{"config":{"properties":{"id":{"type":"string","format":"number"},"status":{"type":"string","enum":["1","2"]},"identify":{"type":"string","minLength":1},"merchantId":{"type":"string","format":"number"},"merchantName":{"type":"string","minLength":1},"operateName":{"type":"string","minLength":1},"storeId":{"type":"string","format":"number"},"storeName":{"type":"string","minLength":1}},"type":"object","required":["id","status","identify","merchantId","merchantName","operateName","storeId","storeName"]}}}`
+func TestParseDefaultJson(t *testing.T) {
+
+	schemaline, err := jsonschemaline.ParseJsonschemaline(schemalineIn3)
+	if err != nil {
+		panic(err)
+	}
+	defaultJson, err := schemaline.DefaultJson()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("%#v", defaultJson)
+}
 
 func TestJsonSchemalineString(t *testing.T) {
 	lineschema, err := jsonschemaline.ParseJsonschemaline(schemalineOut)
@@ -26,7 +37,9 @@ func TestJsonSchemalineString(t *testing.T) {
 }
 
 func TestJsonSchema2LineSchema(t *testing.T) {
-	lineschemaStr, err := jsonschemaline.JsonSchema2LineSchema(jsonStr)
+	var jsonschmaStr = `{"$schema":"http://json-schema.org/draft-07/schema#","$id":"execAPIInquiryScreenIdentifyUpdate","type":"object","required":["config"],"properties":{"config":{"properties":{"id":{"type":"string","format":"number"},"status":{"type":"string","enum":["1","2"]},"identify":{"type":"string","minLength":1},"merchantId":{"type":"string","format":"number"},"merchantName":{"type":"string","minLength":1},"operateName":{"type":"string","minLength":1},"storeId":{"type":"string","format":"number"},"storeName":{"type":"string","minLength":1}},"type":"object","required":["id","status","identify","merchantId","merchantName","operateName","storeId","storeName"]}}}`
+
+	lineschemaStr, err := jsonschemaline.JsonSchema2LineSchema(jsonschmaStr)
 	if err != nil {
 		panic(err)
 	}
@@ -144,7 +157,7 @@ func TestJsonschemaline2json3(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	jsonStr, err := l.Jsonschemaline2json()
+	jsonStr, err := l.JsonExample()
 	if err != nil {
 		panic(err)
 	}

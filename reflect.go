@@ -23,7 +23,6 @@ import (
 	"github.com/suifengpiao14/kvstruct"
 )
 
-const EOF = "\n"
 const EOF_DOUBLE = "\n\n" //double
 // Version is the JSON Schema version.
 var Version = "http://json-schema.org/draft/2020-12/schema"
@@ -458,37 +457,6 @@ func (r *Reflector) reflectTypeToSchema(definitions Definitions, t reflect.Type)
 	panic("unsupported type " + t.String())
 }
 
-func (r *Reflector) reflectCustomSchema(definitions Definitions, t reflect.Type) *Schema {
-	if t.Kind() == reflect.Ptr {
-		return r.reflectCustomSchema(definitions, t.Elem())
-	}
-
-	if t.Implements(customType) {
-		v := reflect.New(t)
-		o := v.Interface().(customSchemaImpl)
-		st := o.JSONSchema()
-		r.addDefinition(definitions, t, st)
-		if r.DoNotReference {
-			return st
-		} else {
-			return r.refDefinition(definitions, t)
-		}
-	}
-
-	return nil
-}
-
-func (r *Reflector) reflectOrRefStruct(definitions Definitions, t reflect.Type) *Schema {
-	st := new(Schema)
-	r.addDefinition(definitions, t, st) // makes sure we have a re-usable reference already
-	r.reflectStruct(definitions, t, st)
-	if r.DoNotReference {
-		return st
-	} else {
-		return r.refDefinition(definitions, t)
-	}
-}
-
 // Reflects a struct to a JSON Schema type.
 func (r *Reflector) reflectStruct(definitions Definitions, t reflect.Type, s *Schema) {
 	s.Type = "object"
@@ -589,12 +557,6 @@ func (r *Reflector) lookupComment(t reflect.Type, name string) string {
 	}
 
 	return r.CommentMap[n]
-}
-
-// addDefinition will append the provided schema. If needed, an ID and anchor will also be added.
-func (r *Reflector) addDefinition(definitions Definitions, t reflect.Type, s *Schema) {
-	name := r.typeName(t)
-	definitions[name] = s
 }
 
 // refDefinition will provide a schema with a reference to an existing definition.
@@ -841,7 +803,7 @@ func GetMetaLine(tagLineKVpairs []kvstruct.KVS) (tagLineKVpair *kvstruct.KVS, ok
 }
 
 func SplitLineSchema(onelineSchema string) kvstruct.KVS {
-	onelineSchema = PretreatJsonschemalineRaw(onelineSchema)
+
 	kvStrArr := SplitOnUnescapedCommas(onelineSchema)
 	out := make(kvstruct.KVS, 0)
 	for _, kvStr := range kvStrArr {
@@ -1460,14 +1422,4 @@ var defaultSkipTokens = skipTokens{
 
 func fullyQualifiedTypeName(t reflect.Type) string {
 	return t.PkgPath() + "." + t.Name()
-}
-
-// AddGoComments will update the reflectors comment map with all the comments
-// found in the provided source directories. See the #ExtractGoComments method
-// for more details.
-func (r *Reflector) AddGoComments(base, path string) error {
-	if r.CommentMap == nil {
-		r.CommentMap = make(map[string]string)
-	}
-	return ExtractGoComments(base, path, r.CommentMap)
 }

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
-	"regexp"
 	"strconv"
 	"strings"
 
@@ -60,13 +59,7 @@ type JsonschemalineItem struct {
 	TagLineKVpair    kvstruct.KVS `json:"-"`
 }
 
-func (jItem JsonschemalineItem) Json() (jsonStr string) {
-	b, _ := json.Marshal(jItem)
-	jsonStr = string(b)
-	return jsonStr
-}
-
-func (jItem JsonschemalineItem) jsonSchemaItem() (jsonStr string) {
+func (jItem JsonschemalineItem) String() (jsonStr string) {
 	copy := jItem
 	copy.Required = false // 转换成json schema时 required 单独处理
 	// 这部分字段隐藏
@@ -84,7 +77,7 @@ func (jItem JsonschemalineItem) jsonSchemaItem() (jsonStr string) {
 }
 
 func (jItem JsonschemalineItem) ToKVS(namespance string) (kvs kvstruct.KVS) {
-	jsonStr := jItem.jsonSchemaItem()
+	jsonStr := jItem.String()
 	kvs = kvstruct.JsonToKVS(jsonStr, namespance)
 	return kvs
 }
@@ -229,7 +222,6 @@ type Jsonschemaline struct {
 }
 
 func (l *Jsonschemaline) String() string {
-
 	lineArr := make([]string, 0)
 	lineArr = append(lineArr, fmt.Sprintf("version=%s,direction=%s,id=%s", l.Meta.Version, l.Meta.Direction, l.Meta.ID))
 	var linemap []map[string]string
@@ -270,132 +262,6 @@ func (l *Jsonschemaline) String() string {
 	}
 	out := strings.Join(lineArr, EOF)
 	return out
-}
-
-// ParseMultiJsonSchemaline 解析多个 jsonschemaline
-func ParseMultiJsonSchemaline(jsonschemalineBlocks string) (jsonschemalines []*Jsonschemaline, err error) {
-	jsonschemalineBlocks = strings.TrimSpace(strings.ReplaceAll(jsonschemalineBlocks, "\r\n", EOF))
-	arr := strings.Split(jsonschemalineBlocks, EOF_DOUBLE)
-	jsonschemalines = make([]*Jsonschemaline, 0)
-	for _, lineschemaBlock := range arr {
-		jsonschemaline, err := ParseJsonschemaline(lineschemaBlock)
-		if err != nil {
-			return nil, err
-		}
-		jsonschemalines = append(jsonschemalines, jsonschemaline)
-	}
-	return jsonschemalines, nil
-}
-
-// ParseJsonschemaline 解析单个 jsonschemaline
-func ParseJsonschemaline(jsonschemalineBlock string) (jsonschemaline *Jsonschemaline, err error) {
-	jsonschemaline = new(Jsonschemaline)
-	jsonschemalineBlock = strings.TrimSpace(strings.ReplaceAll(jsonschemalineBlock, "\r\n", EOF))
-	arr := strings.Split(jsonschemalineBlock, EOF)
-	for _, raw := range arr {
-		raw = strings.TrimSpace(raw)
-		meta, item, err := ParseJsonschemalineRaw(raw)
-		if err != nil {
-			return nil, err
-		}
-		if meta != nil {
-			jsonschemaline.Meta = meta
-		} else if item != nil {
-			jsonschemaline.Items = append(jsonschemaline.Items, item)
-		}
-	}
-	if jsonschemaline.Meta == nil {
-		err := errors.Errorf("jsonschemaline ID required,got:%s", jsonschemalineBlock)
-		return nil, err
-	}
-
-	for _, item := range jsonschemaline.Items {
-		str := strings.ReplaceAll(item.Fullname, "[]", ".#")
-		srcOrDst := fmt.Sprintf("%s.%s", jsonschemaline.Meta.ID, str)
-		if item.Src == "" {
-			item.Src = srcOrDst
-		}
-		if item.Dst == "" {
-			item.Dst = srcOrDst
-		}
-	}
-
-	return jsonschemaline, nil
-}
-
-// ParseJsonschemalineRaw 解析 jsonschemaline 一行数据
-func ParseJsonschemalineRaw(jsonschemalineRaw string) (meta *Meta, item *JsonschemalineItem, err error) {
-	jsonschemalineRaw = PretreatJsonschemalineRaw(jsonschemalineRaw)
-	kvStrArr := SplitOnUnescapedCommas(jsonschemalineRaw)
-	kvMap := make(map[string]string)
-	enumList := make([]string, 0)
-	constList := make([]string, 0)
-	tagLineKVPair := make(kvstruct.KVS, 0)
-	for _, kvStr := range kvStrArr {
-		kvPair := strings.SplitN(kvStr, "=", 2)
-		if len(kvPair) == 2 {
-			k, v := strings.TrimSpace(kvPair[0]), strings.TrimSpace(kvPair[1])
-			switch k {
-			case "enum":
-				enumList = append(enumList, v)
-			case "const":
-				constList = append(constList, v)
-			default:
-				kvMap[k] = v
-			}
-			tagLineKVPair = append(tagLineKVPair, kvstruct.KV{Key: k, Value: v})
-		}
-	}
-	if len(enumList) > 0 {
-		jb, err := json.Marshal(enumList)
-		if err != nil {
-			return nil, nil, err
-		}
-		kvMap["enum"] = string(jb)
-	}
-	if len(constList) > 0 {
-		jb, err := json.Marshal(constList)
-		if err != nil {
-			return nil, nil, err
-		}
-		kvMap["const"] = string(jb)
-	}
-	jb, err := json.Marshal(kvMap)
-	if err != nil {
-		return nil, nil, err
-	}
-	if IsMetaLine(tagLineKVPair) {
-		meta = new(Meta)
-		err = json.Unmarshal(jb, meta)
-		if err != nil {
-			return nil, nil, err
-		}
-		if meta.Version == "" || meta.ID == "" {
-			err := errors.Errorf("meta line required version、id ,got:%s", jsonschemalineRaw)
-			return nil, nil, err
-		}
-		switch meta.Direction {
-		case LINE_SCHEMA_DIRECTION_IN, LINE_SCHEMA_DIRECTION_OUT:
-
-		default:
-			err := errors.Errorf("meta direction must one of  [%s,%s] ,got:%s", LINE_SCHEMA_DIRECTION_IN, LINE_SCHEMA_DIRECTION_OUT, jsonschemalineRaw)
-			return nil, nil, err
-
-		}
-		return meta, nil, nil
-	}
-	item = new(JsonschemalineItem)
-	err = json.Unmarshal(jb, item)
-	if err != nil {
-		return nil, nil, err
-	}
-	if item.Src == "" && item.Dst == "" {
-		err := errors.Errorf("at least one of dst/src required ,got :%s", jsonschemalineRaw)
-		return nil, nil, err
-	}
-
-	item.TagLineKVpair = tagLineKVPair
-	return nil, item, nil
 }
 
 func (l *Jsonschemaline) JsonSchema() (jsonschemaByte []byte, err error) {
@@ -482,140 +348,33 @@ func (l *Jsonschemaline) JsonExample() (jsonExample string, err error) {
 	return jsonExample, nil
 }
 
-// Deprecated see JsonExample
-func (l *Jsonschemaline) Jsonschemaline2json() (jsonStr string, err error) {
-	return l.JsonExample()
+type DefaultJson struct {
+	ID      string
+	Version string
+	Json    string
 }
 
-// DefaultJson 获取默认值
-func (l *Jsonschemaline) DefaultJson() (defaultData string, err error) {
-	defaultJson, err := ParseDefaultJson(*l)
-	if err != nil {
-		return "", err
-	}
-	return defaultJson.Json, nil
-}
-
-type Struct struct {
-	IsRoot     bool
-	Name       string
-	Lineschema string
-	Attrs      []*StructAttr
-}
-
-// AddAttrIgnore 已经存在则跳过
-func (s *Struct) AddAttrIgnore(attrs ...StructAttr) {
-	if len(s.Attrs) == 0 {
-		s.Attrs = make([]*StructAttr, 0)
-	}
-	for _, attr := range attrs {
-		if _, exists := s.GetAttr(attr.Name); exists {
-			continue
-		}
-		s.Attrs = append(s.Attrs, &attr)
-	}
-}
-
-// AddAttrReplace 增加或者替换
-func (s *Struct) AddAttrReplace(attrs ...StructAttr) {
-	if len(s.Attrs) == 0 {
-		s.Attrs = make([]*StructAttr, 0)
-	}
-	for _, attr := range attrs {
-		if old, exists := s.GetAttr(attr.Name); exists {
-			*old = attr
-			continue
-		}
-		s.Attrs = append(s.Attrs, &attr)
-	}
-}
-func (s *Struct) GetAttr(attrName string) (structAttr *StructAttr, exists bool) {
-	for _, attr := range s.Attrs {
-		if attr.Name == attrName {
-			return attr, true
+func (l *Jsonschemaline) DefaultJson() (defaultJson *DefaultJson, err error) {
+	defaultJson = new(DefaultJson)
+	id := l.Meta.ID.String()
+	defaultJson.ID = id
+	defaultJson.Version = l.Meta.Version
+	kvmap := make(map[string]string)
+	for _, item := range l.Items {
+		if item.Default != "" || item.AllowEmptyValue {
+			path := strings.ReplaceAll(item.Fullname, "[]", ".#")
+			kvmap[path] = item.Default
 		}
 	}
-	return nil, false
-}
-
-type StructAttr struct {
-	Name    string
-	Type    string
-	Tag     string
-	Comment string
-}
-
-type Structs []*Struct
-
-func (s *Structs) Json() (str string) {
-	b, _ := json.Marshal(s)
-	str = string(b)
-	return str
-}
-
-func (s *Structs) GetRoot() (struc *Struct, exists bool) {
-	for _, stru := range *s {
-		if stru.IsRoot {
-			return stru, true
+	jsonContent := ""
+	for k, v := range kvmap {
+		jsonContent, err = sjson.Set(jsonContent, k, v)
+		if err != nil {
+			return nil, err
 		}
 	}
-	return struc, false
-}
-
-func (s *Structs) Get(name string) (struc *Struct, exists bool) {
-	for _, stru := range *s {
-		if stru.Name == name {
-			return stru, true
-		}
-	}
-	return struc, false
-}
-
-func (s *Structs) AddIngore(structs ...*Struct) {
-	if len(*s) == 0 {
-		*s = make(Structs, 0)
-	}
-	for _, structRef := range structs {
-		if _, exists := s.Get(structRef.Name); exists {
-			continue
-		}
-		*s = append(*s, structRef)
-
-	}
-}
-
-// Copy 深度复制
-func (s Structs) Copy() (newStructs Structs) {
-	newStructs = make(Structs, 0)
-	for _, struc := range s {
-		newStruct := *struc
-		newStruct.Attrs = make([]*StructAttr, 0)
-		for _, attr := range struc.Attrs {
-			newAttr := *attr
-			newStruct.Attrs = append(newStruct.Attrs, &newAttr)
-		}
-		newStructs = append(newStructs, &newStruct)
-	}
-	return newStructs
-}
-
-func (s *Structs) AddNameprefix(nameprefix string) {
-	if len(*s) == 0 {
-		return
-	}
-	allAttrs := make([]*StructAttr, 0)
-	for _, struc := range *s {
-		allAttrs = append(allAttrs, struc.Attrs...)
-	}
-	for _, struc := range *s {
-		baseName := struc.Name
-		struc.Name = funcs.ToCamel(fmt.Sprintf("%s_%s", nameprefix, baseName))
-		for _, attr := range allAttrs {
-			if strings.HasSuffix(attr.Type, baseName) {
-				attr.Type = fmt.Sprintf("%s%s", attr.Type[:len(attr.Type)-len(baseName)], struc.Name)
-			}
-		}
-	}
+	defaultJson.Json = jsonContent
+	return defaultJson, nil
 }
 
 func (l *Jsonschemaline) ToSturct() (structs Structs) {
@@ -837,42 +596,6 @@ func recursionWrite(m *map[string]interface{}) (w bytes.Buffer) {
 	return w
 }
 
-// PretreatJsonschemalineRaw 处理enum []格式
-func PretreatJsonschemalineRaw(tag string) (formatTag string) {
-	preg := "enum=\\[(.*)\\]"
-	formatTag = strings.Trim(tag, ",")
-	reg := regexp.MustCompile(preg)
-	matchArr := reg.FindAllStringSubmatch(tag, -1)
-	if len(matchArr) > 0 {
-		replaceStr := "enum="
-		for _, matchRaw := range matchArr {
-			raw := strings.ReplaceAll(matchRaw[1], `"`, "")
-			valArr := strings.Split(raw, ",")
-			replaceStr = fmt.Sprintf("enum=%s,", strings.Join(valArr, ",enum="))
-			formatTag = strings.ReplaceAll(formatTag, matchRaw[0], replaceStr)
-		}
-	}
-	formatTag = strings.Trim(formatTag, ",") // 删除前后分号
-	hasType := false
-	kvStrArr := strings.Split(formatTag, ",")
-	tmpArr := make([]string, 0)
-	for _, kvStr := range kvStrArr {
-		kvStr = strings.TrimSpace(kvStr)
-		kvPair := strings.SplitN(kvStr, "=", 2)
-		if len(kvPair) == 1 {
-			kvPair = append(kvPair, "true") // bool 类型为true时，可以简写只有key
-		}
-		k, v := strings.TrimSpace(kvPair[0]), strings.TrimSpace(kvPair[1])
-		hasType = hasType || k == "type"
-		tmpArr = append(tmpArr, fmt.Sprintf("%s=%s", k, v))
-	}
-	if !hasType {
-		tmpArr = append(tmpArr, "type=string") // 增加默认type=string
-	}
-	formatTag = strings.Join(tmpArr, ",")
-	return formatTag
-}
-
 func JsonSchema2LineSchema(jsonschemaStr string) (lineschemaStr string, err error) {
 	var jschema Schema
 	err = jschema.UnmarshalJSON([]byte(jsonschemaStr))
@@ -882,7 +605,7 @@ func JsonSchema2LineSchema(jsonschemaStr string) (lineschemaStr string, err erro
 	return jschema.Lineschema()
 }
 
-// Json2gsonPatch
+// Json2lineSchema
 func Json2lineSchema(jsonStr string) (out *Jsonschemaline, err error) {
 	out = &Jsonschemaline{
 		Meta: &Meta{

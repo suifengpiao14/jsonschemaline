@@ -1,30 +1,128 @@
 package jsonschemaline
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"strings"
 
+	"github.com/pkg/errors"
 	"github.com/suifengpiao14/kvstruct"
 )
 
 const (
 	TOKEN_BEGIN = ','
 	TOKEN_END   = '='
+	EOF         = "\n"
 )
 
-type KeyIndex struct {
-	BeginAt int
-	EndAt   int
+// ParseJsonschemaline 解析lineschema
+func ParseJsonschemaline(lineschema string) (jsonline *Jsonschemaline, err error) {
+	lineschema = compress(lineschema)
+	lines := strings.Split(lineschema, EOF)
+	jsonline = &Jsonschemaline{
+		Items: make([]*JsonschemalineItem, 0),
+	}
+	for _, line := range lines {
+		kvs := parserOneLine(line)
+		if IsMetaLine(kvs) {
+			meta, err := kvs2meta(kvs)
+			if err != nil {
+				return nil, err
+			}
+			err = validMeta(meta)
+			if err != nil {
+				err = errors.WithMessage(err, fmt.Sprintf(" got:%s", line))
+				return nil, err
+			}
+			jsonline.Meta = meta
+			continue
+		}
+		item, err := kv2item(kvs)
+		if err != nil {
+			return nil, err
+		}
+		err = validItem(item)
+		if err != nil {
+			err = errors.WithMessage(err, fmt.Sprintf(" got:%s", line))
+			return nil, err
+		}
+		srcOrDst := strings.ReplaceAll(item.Fullname, "[]", ".#")
+		if item.Src == "" {
+			item.Src = srcOrDst
+		} else if item.Dst == "" {
+			item.Dst = srcOrDst
+		}
+		jsonline.Items = append(jsonline.Items, item)
+	}
+
+	return jsonline, nil
 }
 
-// ParserLine 解析一行数据
-func ParserLine(line string) (kvs kvstruct.KVS) {
+func kvs2meta(kvs kvstruct.KVS) (meta *Meta, err error) {
+	meta = new(Meta)
+	jb, err := json.Marshal(kvs.Map())
+	if err != nil {
+		return nil, err
+	}
+	err = json.Unmarshal(jb, meta)
+	if err != nil {
+		return nil, err
+	}
+	return meta, nil
+}
+
+func validMeta(meta *Meta) (err error) {
+	if meta.ID == "" {
+		err := errors.New("meta line required id")
+		return err
+	}
+	switch meta.Direction {
+	case LINE_SCHEMA_DIRECTION_IN, LINE_SCHEMA_DIRECTION_OUT:
+	default:
+		err := errors.Errorf("meta direction must one of  [%s,%s] ,got:%s", LINE_SCHEMA_DIRECTION_IN, LINE_SCHEMA_DIRECTION_OUT, meta.Direction)
+		return err
+	}
+	return nil
+}
+
+func validItem(item *JsonschemalineItem) (err error) {
+	if item.Fullname == "" {
+		err = errors.New("fullname required ")
+		return err
+	}
+	if item.Src == "" && item.Dst == "" {
+		err = errors.New("at least one of dst/src required ")
+		return err
+	}
+	return nil
+}
+func kv2item(kvs kvstruct.KVS) (item *JsonschemalineItem, err error) {
+	item = new(JsonschemalineItem)
+	jb, err := json.Marshal(kvs.Map())
+	if err != nil {
+		return nil, err
+	}
+	err = json.Unmarshal(jb, item)
+	if err != nil {
+		return nil, err
+	}
+	return item, nil
+}
+
+func compress(lineschema string) (compressedSchema string) {
+	lineschema = strings.TrimSpace(lineschema)
+	replacer := strings.NewReplacer(" ", "", "\t", "", "\r", "")
+	compressedSchema = replacer.Replace(lineschema)
+	return compressedSchema
+}
+
+// parserOneLine 解析一行数据
+func parserOneLine(line string) (kvs kvstruct.KVS) {
+	line = compress(line)
 	if line == "" {
 		return nil
 	}
-	replacer := strings.NewReplacer(" ", "", "\n", "", "\t", "", "\r", "")
-	line = replacer.Replace(line)
 	ret := make([]string, 0)
 	separated := strings.Split(line, ",")
 	ret = append(ret, separated[0])
@@ -51,10 +149,7 @@ func ParserLine(line string) (kvs kvstruct.KVS) {
 		kvs.Add(kv)
 
 	}
-
-	fmt.Println(kvs)
-
-	return
+	return kvs
 }
 func isToken(s string) (yes bool) {
 	for _, token := range getTokens() {
