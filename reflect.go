@@ -457,6 +457,37 @@ func (r *Reflector) reflectTypeToSchema(definitions Definitions, t reflect.Type)
 	panic("unsupported type " + t.String())
 }
 
+func (r *Reflector) reflectCustomSchema(definitions Definitions, t reflect.Type) *Schema {
+	if t.Kind() == reflect.Ptr {
+		return r.reflectCustomSchema(definitions, t.Elem())
+	}
+
+	if t.Implements(customType) {
+		v := reflect.New(t)
+		o := v.Interface().(customSchemaImpl)
+		st := o.JSONSchema()
+		r.addDefinition(definitions, t, st)
+		if r.DoNotReference {
+			return st
+		} else {
+			return r.refDefinition(definitions, t)
+		}
+	}
+
+	return nil
+}
+
+func (r *Reflector) reflectOrRefStruct(definitions Definitions, t reflect.Type) *Schema {
+	st := new(Schema)
+	r.addDefinition(definitions, t, st) // makes sure we have a re-usable reference already
+	r.reflectStruct(definitions, t, st)
+	if r.DoNotReference {
+		return st
+	} else {
+		return r.refDefinition(definitions, t)
+	}
+}
+
 // Reflects a struct to a JSON Schema type.
 func (r *Reflector) reflectStruct(definitions Definitions, t reflect.Type, s *Schema) {
 	s.Type = "object"
@@ -557,6 +588,12 @@ func (r *Reflector) lookupComment(t reflect.Type, name string) string {
 	}
 
 	return r.CommentMap[n]
+}
+
+// addDefinition will append the provided schema. If needed, an ID and anchor will also be added.
+func (r *Reflector) addDefinition(definitions Definitions, t reflect.Type, s *Schema) {
+	name := r.typeName(t)
+	definitions[name] = s
 }
 
 // refDefinition will provide a schema with a reference to an existing definition.
