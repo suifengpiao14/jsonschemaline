@@ -14,7 +14,11 @@ import (
 )
 
 func TestParseDefaultJson(t *testing.T) {
-
+	var schemalineIn3 = `
+    version=http://json-schema.org/draft-07/schema#,direction=in,id=mainIn
+	fullname=pageSize,format=number,required,dst=Limit,default=20
+fullname=pageIndex,format=number,required,dst=pageIndex,default=1
+ `
 	schemaline, err := jsonschemaline.ParseJsonschemaline(schemalineIn3)
 	if err != nil {
 		panic(err)

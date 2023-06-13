@@ -7,12 +7,6 @@ import (
 	"github.com/suifengpiao14/jsonschemaline"
 )
 
-var schemalineIn3 = `
-    version=http://json-schema.org/draft-07/schema#,id=mainIn
-	fullname=pageSize,format=number,required,dst=Limit
-fullname=pageIndex,format=number,required,dst={{setValue . "Offset" (mul  (getValue .  "mainIn.pageIndex")   (getValue . "mainIn.pageSize"))}}
- `
-
 func TestJsonMerge(t *testing.T) {
 	defaultJson := `{"pageSize":"20","remark":"hello world"}`
 	specialJson := `{"pageIndex":"0","pageSize":"10"}`
