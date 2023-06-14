@@ -19,7 +19,8 @@ func JsonSchema2LineSchema(jsonschema string) (lineschema *Jsonschemaline, err e
 	}
 	kvs1 := dealPropertiesAndItemsdealRequired(kvs)
 	kvs2 := dealRequired(kvs1)
-	fmt.Println(kvs2)
+	kvs3 := dealArray(kvs2)
+	fmt.Println(kvs3)
 	return
 }
 func dealArray(kvs kvstruct.KVS) (newKvs kvstruct.KVS) {
@@ -45,7 +46,7 @@ func dealArray(kvs kvstruct.KVS) (newKvs kvstruct.KVS) {
 		newKvs.AddReplace(newkv)
 	}
 
-	return
+	return newKvs
 }
 func dealPropertiesAndItemsdealRequired(kvs kvstruct.KVS) (newKvs kvstruct.KVS) {
 	replacer := strings.NewReplacer("properties.", "", "items.", "[]")
