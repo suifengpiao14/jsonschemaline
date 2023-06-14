@@ -8,14 +8,14 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.8.1
 	github.com/suifengpiao14/funcs v0.0.3
-	github.com/suifengpiao14/gjsonmodifier v0.1.7
+	github.com/suifengpiao14/gjsonmodifier v0.1.9
 	github.com/suifengpiao14/kvstruct v0.0.14
 	github.com/tidwall/gjson v1.14.4
 	github.com/tidwall/sjson v1.2.5
 )
 
 require (
-	github.com/d5/tengo/v2 v2.13.0 // indirect
+	github.com/d5/tengo/v2 v2.16.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect

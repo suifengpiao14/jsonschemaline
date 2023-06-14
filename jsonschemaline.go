@@ -596,15 +596,6 @@ func recursionWrite(m *map[string]interface{}) (w bytes.Buffer) {
 	return w
 }
 
-func JsonSchema2LineSchema(jsonschemaStr string) (lineschemaStr string, err error) {
-	var jschema Schema
-	err = jschema.UnmarshalJSON([]byte(jsonschemaStr))
-	if err != nil {
-		return "", err
-	}
-	return jschema.Lineschema()
-}
-
 // Json2lineSchema
 func Json2lineSchema(jsonStr string) (out *Jsonschemaline, err error) {
 	out = &Jsonschemaline{
