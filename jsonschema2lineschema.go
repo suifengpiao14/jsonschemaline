@@ -1,17 +1,47 @@
 package jsonschemaline
 
 import (
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"strings"
 
+	"github.com/spf13/cast"
 	"github.com/suifengpiao14/kvstruct"
 )
 
+// jsonschema 转 kvs
+func jsonSchema2KVS(schema map[string]interface{}, prefix string) kvstruct.KVS {
+	kvs := kvstruct.KVS{}
+	for key, value := range schema {
+		fieldName := fmt.Sprintf("%s%s", prefix, key)
+		switch valueType := value.(type) {
+		case map[string]interface{}:
+			// 递归处理子对象
+			kvs.Add(jsonSchema2KVS(valueType, fieldName+".")...)
+		default:
+			// 将键值对格式化为字符串
+			kvs.Add(kvstruct.KV{
+				Key:   fieldName,
+				Value: cast.ToString(value),
+			})
+		}
+	}
+	return kvs
+}
+
 func JsonSchema2LineSchema(jsonschema string) (lineschema *Jsonschemaline, err error) {
-	kvs := kvstruct.JsonToKVS(jsonschema, "")
+	var schema map[string]interface{}
+	err = json.Unmarshal([]byte(jsonschema), &schema)
+	if err != nil {
+		return nil, err
+	}
+	kvs := jsonSchema2KVS(schema, "")
 	version, _ := kvs.GetFirstByKey("$schema")
 	id, _ := kvs.GetFirstByKey("$id")
+	if id.Value == "" {
+		id.Value = "example"
+	}
 	lineschema.Meta = &Meta{
 		Version:   version.Value,
 		ID:        ID(id.Value),
@@ -49,15 +79,21 @@ func dealArray(kvs kvstruct.KVS) (newKvs kvstruct.KVS) {
 	return newKvs
 }
 func dealPropertiesAndItemsdealRequired(kvs kvstruct.KVS) (newKvs kvstruct.KVS) {
-	replacer := strings.NewReplacer("properties.", "", "items.", "[]")
+	arrayKeyReplaceKvs := kvstruct.KVS{}
+	objectKeys := make([]string, 0)
+	typeExt := ".type"
+
 	newKvs = make(kvstruct.KVS, 0)
 	for _, kv := range kvs {
-		newKv := kvstruct.KV{
-			Key:   replacer.Replace(kv.Key),
-			Value: kv.Value,
+		if strings.ToLower(kv.Value) == "array" && strings.HasSuffix(kv.Key, typeExt) {
+
+			arrayKeys = append(arrayKeys, fmt.Sprintf("%s.items", strings.TrimSuffix(kv.Key, typeExt)))
 		}
-		newKvs.Add(newKv)
 	}
+	for _, kv := range kvs {
+
+	}
+
 	return newKvs
 }
 
