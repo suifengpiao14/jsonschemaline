@@ -378,7 +378,7 @@ func TestToJsonSchemaKVS(t *testing.T) {
 		}
 		kvs, err := item.ToJsonSchemaKVS()
 		require.NoError(t, err)
-		schema, err := kvs.Json(false)
+		schema, err := kvs.Json(true)
 		require.NoError(t, err)
 		fmt.Println(schema)
 	})

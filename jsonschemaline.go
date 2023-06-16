@@ -77,27 +77,17 @@ func (jItem JsonschemalineItem) ToKVS(namespance string) (kvs kvstruct.KVS) {
 	kvs = kvstruct.JsonToKVS(jsonStr, namespance)
 	return kvs
 }
-func (jItem JsonschemalineItem) enum2Array() (enum []string, enumNames []string, err error) {
+func (jItem JsonschemalineItem) enum2Array() (enum []interface{}, enumNames []interface{}, err error) {
 	if jItem.Enum != "" {
-		var enumI []interface{}
-		err = json.Unmarshal([]byte(jItem.Enum), &enumI)
+		err = json.Unmarshal([]byte(jItem.Enum), &enum)
 		if err != nil {
 			return nil, nil, err
-		}
-		enum = make([]string, 0)
-		for _, e := range enumI {
-			enum = append(enum, cast.ToString(e))
 		}
 	}
 	if jItem.EnumNames != "" {
-		var enumNamesI []interface{}
-		err = json.Unmarshal([]byte(jItem.EnumNames), &enumNamesI)
+		err = json.Unmarshal([]byte(jItem.EnumNames), &enumNames)
 		if err != nil {
 			return nil, nil, err
-		}
-		enumNames = make([]string, 0)
-		for _, e := range enumNamesI {
-			enumNames = append(enumNames, cast.ToString(e))
 		}
 	}
 	return enum, enumNames, nil
@@ -184,25 +174,31 @@ func (jItem JsonschemalineItem) ToJsonSchemaKVS() (kvs kvstruct.KVS, err error) 
 	return kvs, nil
 }
 
-func enumNames2KVS(enum []string, enumNames []string, prefix string) (kvs kvstruct.KVS) {
+func enumNames2KVS(enums []interface{}, enumNames []interface{}, prefix string) (kvs kvstruct.KVS) {
 	kvs = make(kvstruct.KVS, 0)
 	if len(enumNames) < 1 {
 		return kvs
 	}
-	enumLen := len(enum)
+	enumLen := len(enums)
 	for i, enumName := range enumNames {
 		if i >= enumLen {
 			continue
 		}
-		enum := enum[i]
+		enum := enums[i]
+		typ := ""
+		switch enum.(type) {
+		case int, float64, int64:
+			typ = "int"
+		}
 		kv := kvstruct.KV{
+			Type:  kvstruct.KVType(typ),
 			Key:   strings.Trim(fmt.Sprintf("%s.oneOf.%d.const", prefix, i), "."),
-			Value: enum,
+			Value: cast.ToString(enum),
 		}
 		kvs.Add(kv)
 		kv = kvstruct.KV{
 			Key:   strings.Trim(fmt.Sprintf("%s.oneOf.%d.title", prefix, i), "."),
-			Value: enumName,
+			Value: cast.ToString(enumName),
 		}
 		kvs.Add(kv)
 	}
