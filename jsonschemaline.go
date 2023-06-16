@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+	"github.com/spf13/cast"
 	"github.com/suifengpiao14/funcs"
 	_ "github.com/suifengpiao14/gjsonmodifier"
 	"github.com/suifengpiao14/kvstruct"
@@ -76,6 +77,31 @@ func (jItem JsonschemalineItem) ToKVS(namespance string) (kvs kvstruct.KVS) {
 	kvs = kvstruct.JsonToKVS(jsonStr, namespance)
 	return kvs
 }
+func (jItem JsonschemalineItem) enum2Array() (enum []string, enumNames []string, err error) {
+	if jItem.Enum != "" {
+		var enumI []interface{}
+		err = json.Unmarshal([]byte(jItem.Enum), &enumI)
+		if err != nil {
+			return nil, nil, err
+		}
+		enum = make([]string, 0)
+		for _, e := range enumI {
+			enum = append(enum, cast.ToString(e))
+		}
+	}
+	if jItem.EnumNames != "" {
+		var enumNamesI []interface{}
+		err = json.Unmarshal([]byte(jItem.EnumNames), &enumNamesI)
+		if err != nil {
+			return nil, nil, err
+		}
+		enumNames = make([]string, 0)
+		for _, e := range enumNamesI {
+			enumNames = append(enumNames, cast.ToString(e))
+		}
+	}
+	return enum, enumNames, nil
+}
 
 func (jItem JsonschemalineItem) ToJsonSchemaKVS() (kvs kvstruct.KVS, err error) {
 	kvs = make(kvstruct.KVS, 0)
@@ -107,8 +133,12 @@ func (jItem JsonschemalineItem) ToJsonSchemaKVS() (kvs kvstruct.KVS, err error) 
 				fullKey := strings.Trim(fmt.Sprintf("%s.items", prefix), ".")
 				attrKvs := jItem.ToKVS(fullKey)
 				kvs.AddReplace(attrKvs...)
-				// subKvs := enumNames2KVS(jItem.Enum, jItem.EnumNames, fullKey)
-				// kvs.AddReplace(subKvs...)
+				enum, enumNames, err := jItem.enum2Array()
+				if err != nil {
+					return nil, err
+				}
+				subKvs := enumNames2KVS(enum, enumNames, fullKey)
+				kvs.AddReplace(subKvs...)
 				continue
 			}
 			prefix = fmt.Sprintf("%s.items", prefix)
@@ -134,8 +164,12 @@ func (jItem JsonschemalineItem) ToJsonSchemaKVS() (kvs kvstruct.KVS, err error) 
 			fullKey := strings.Trim(fmt.Sprintf("%s.%s", prefix, key), ".")
 			attrKvs := jItem.ToKVS(fullKey)
 			kvs.AddReplace(attrKvs...)
-			// subKvs := enumNames2KVS(jItem.Enum, jItem.EnumNames, fullKey)
-			// kvs.AddReplace(subKvs...)
+			enum, enumNames, err := jItem.enum2Array()
+			if err != nil {
+				return nil, err
+			}
+			subKvs := enumNames2KVS(enum, enumNames, fullKey)
+			kvs.AddReplace(subKvs...)
 			continue
 		}
 
@@ -150,36 +184,31 @@ func (jItem JsonschemalineItem) ToJsonSchemaKVS() (kvs kvstruct.KVS, err error) 
 	return kvs, nil
 }
 
-/*
-*
-
-	func enumNames2KVS(enum []string, enumNames []string, prefix string) (kvs kvstruct.KVS) {
-		kvs = make(kvstruct.KVS, 0)
-		if len(enumNames) < 1 {
-			return kvs
-		}
-		enumLen := len(enum)
-		for i, enumName := range enumNames {
-			if i >= enumLen {
-				continue
-			}
-			enum := enum[i]
-			kv := kvstruct.KV{
-				Key:   strings.Trim(fmt.Sprintf("%s.oneOf.%d.const", prefix, i), "."),
-				Value: enum,
-			}
-			kvs.Add(kv)
-			kv = kvstruct.KV{
-				Key:   strings.Trim(fmt.Sprintf("%s.oneOf.%d.title", prefix, i), "."),
-				Value: enumName,
-			}
-			kvs.Add(kv)
-		}
+func enumNames2KVS(enum []string, enumNames []string, prefix string) (kvs kvstruct.KVS) {
+	kvs = make(kvstruct.KVS, 0)
+	if len(enumNames) < 1 {
 		return kvs
 	}
+	enumLen := len(enum)
+	for i, enumName := range enumNames {
+		if i >= enumLen {
+			continue
+		}
+		enum := enum[i]
+		kv := kvstruct.KV{
+			Key:   strings.Trim(fmt.Sprintf("%s.oneOf.%d.const", prefix, i), "."),
+			Value: enum,
+		}
+		kvs.Add(kv)
+		kv = kvstruct.KV{
+			Key:   strings.Trim(fmt.Sprintf("%s.oneOf.%d.title", prefix, i), "."),
+			Value: enumName,
+		}
+		kvs.Add(kv)
+	}
+	return kvs
+}
 
-*
-*/
 var jsonschemalineItemOrder = []string{
 	"fullname", "src", "dst", "type", "format", "pattern", "enum", "required", "allowEmptyValue", "title", "description", "default", "comment", "example", "deprecated", "const",
 	"multipleOf", "maximum", "exclusiveMaximum", "minimum", "exclusiveMinimum", "maxLength", "minLength",
