@@ -99,7 +99,12 @@ func validItem(item *JsonschemalineItem) (err error) {
 }
 func kv2item(kvs kvstruct.KVS) (item *JsonschemalineItem, err error) {
 	item = new(JsonschemalineItem)
-	jb, err := json.Marshal(kvs.Map())
+	m := make(map[string]interface{})
+	for k, v := range kvs.Map() {
+		m[k] = v
+	}
+
+	jb, err := json.Marshal(m)
 	if err != nil {
 		return nil, err
 	}

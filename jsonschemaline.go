@@ -19,26 +19,26 @@ import (
 type JsonschemalineItem struct {
 	Comments string `json:"comment,omitempty"` // section 8.3
 
-	Type             string   `json:"type,omitempty"`                    // section 6.1.1
-	Enum             []string `json:"enum,omitempty"`                    // section 6.1.2
-	EnumNames        []string `json:"enumNames,omitempty"`               // section 6.1.2
-	Const            string   `json:"const,omitempty"`                   // section 6.1.3
-	MultipleOf       int      `json:"multipleOf,omitempty,string"`       // section 6.2.1
-	Maximum          int      `json:"maximum,omitempty,string"`          // section 6.2.2
-	ExclusiveMaximum bool     `json:"exclusiveMaximum,omitempty,string"` // section 6.2.3
-	Minimum          int      `json:"minimum,omitempty,string"`          // section 6.2.4
-	ExclusiveMinimum bool     `json:"exclusiveMinimum,omitempty,string"` // section 6.2.5
-	MaxLength        int      `json:"maxLength,omitempty,string"`        // section 6.3.1
-	MinLength        int      `json:"minLength,omitempty,string"`        // section 6.3.2
-	Pattern          string   `json:"pattern,omitempty"`                 // section 6.3.3
-	MaxItems         int      `json:"maxItems,omitempty,string"`         // section 6.4.1
-	MinItems         int      `json:"minItems,omitempty,string"`         // section 6.4.2
-	UniqueItems      bool     `json:"uniqueItems,omitempty,string"`      // section 6.4.3
-	MaxContains      uint     `json:"maxContains,omitempty,string"`      // section 6.4.4
-	MinContains      uint     `json:"minContains,omitempty,string"`      // section 6.4.5
-	MaxProperties    int      `json:"maxProperties,omitempty,string"`    // section 6.5.1
-	MinProperties    int      `json:"minProperties,omitempty,string"`    // section 6.5.2
-	Required         bool     `json:"required,omitempty,string"`         // section 6.5.3
+	Type             string `json:"type,omitempty"`                    // section 6.1.1
+	Enum             string `json:"enum,omitempty"`                    // section 6.1.2
+	EnumNames        string `json:"enumNames,omitempty"`               // section 6.1.2
+	Const            string `json:"const,omitempty"`                   // section 6.1.3
+	MultipleOf       int    `json:"multipleOf,omitempty,string"`       // section 6.2.1
+	Maximum          int    `json:"maximum,omitempty,string"`          // section 6.2.2
+	ExclusiveMaximum bool   `json:"exclusiveMaximum,omitempty,string"` // section 6.2.3
+	Minimum          int    `json:"minimum,omitempty,string"`          // section 6.2.4
+	ExclusiveMinimum bool   `json:"exclusiveMinimum,omitempty,string"` // section 6.2.5
+	MaxLength        int    `json:"maxLength,omitempty,string"`        // section 6.3.1
+	MinLength        int    `json:"minLength,omitempty,string"`        // section 6.3.2
+	Pattern          string `json:"pattern,omitempty"`                 // section 6.3.3
+	MaxItems         int    `json:"maxItems,omitempty,string"`         // section 6.4.1
+	MinItems         int    `json:"minItems,omitempty,string"`         // section 6.4.2
+	UniqueItems      bool   `json:"uniqueItems,omitempty,string"`      // section 6.4.3
+	MaxContains      uint   `json:"maxContains,omitempty,string"`      // section 6.4.4
+	MinContains      uint   `json:"minContains,omitempty,string"`      // section 6.4.5
+	MaxProperties    int    `json:"maxProperties,omitempty,string"`    // section 6.5.1
+	MinProperties    int    `json:"minProperties,omitempty,string"`    // section 6.5.2
+	Required         bool   `json:"required,omitempty,string"`         // section 6.5.3
 	// RFC draft-bhutton-json-schema-validation-00, section 7
 	Format string `json:"format,omitempty"`
 	// RFC draft-bhutton-json-schema-validation-00, section 8
@@ -66,11 +66,6 @@ func (jItem JsonschemalineItem) String() (jsonStr string) {
 	copy.Fullname = ""
 	copy.Dst = ""
 	copy.Src = ""
-	if len(copy.EnumNames) > 0 { // 枚举值需要名称时，单独处理
-
-		copy.Enum = nil
-		copy.EnumNames = nil
-	}
 	b, _ := json.Marshal(copy)
 	jsonStr = string(b)
 	return jsonStr
@@ -112,8 +107,8 @@ func (jItem JsonschemalineItem) ToJsonSchemaKVS() (kvs kvstruct.KVS, err error) 
 				fullKey := strings.Trim(fmt.Sprintf("%s.items", prefix), ".")
 				attrKvs := jItem.ToKVS(fullKey)
 				kvs.AddReplace(attrKvs...)
-				subKvs := enumNames2KVS(jItem.Enum, jItem.EnumNames, fullKey)
-				kvs.AddReplace(subKvs...)
+				// subKvs := enumNames2KVS(jItem.Enum, jItem.EnumNames, fullKey)
+				// kvs.AddReplace(subKvs...)
 				continue
 			}
 			prefix = fmt.Sprintf("%s.items", prefix)
@@ -139,8 +134,8 @@ func (jItem JsonschemalineItem) ToJsonSchemaKVS() (kvs kvstruct.KVS, err error) 
 			fullKey := strings.Trim(fmt.Sprintf("%s.%s", prefix, key), ".")
 			attrKvs := jItem.ToKVS(fullKey)
 			kvs.AddReplace(attrKvs...)
-			subKvs := enumNames2KVS(jItem.Enum, jItem.EnumNames, fullKey)
-			kvs.AddReplace(subKvs...)
+			// subKvs := enumNames2KVS(jItem.Enum, jItem.EnumNames, fullKey)
+			// kvs.AddReplace(subKvs...)
 			continue
 		}
 
@@ -155,31 +150,36 @@ func (jItem JsonschemalineItem) ToJsonSchemaKVS() (kvs kvstruct.KVS, err error) 
 	return kvs, nil
 }
 
-func enumNames2KVS(enum []string, enumNames []string, prefix string) (kvs kvstruct.KVS) {
-	kvs = make(kvstruct.KVS, 0)
-	if len(enumNames) < 1 {
+/*
+*
+
+	func enumNames2KVS(enum []string, enumNames []string, prefix string) (kvs kvstruct.KVS) {
+		kvs = make(kvstruct.KVS, 0)
+		if len(enumNames) < 1 {
+			return kvs
+		}
+		enumLen := len(enum)
+		for i, enumName := range enumNames {
+			if i >= enumLen {
+				continue
+			}
+			enum := enum[i]
+			kv := kvstruct.KV{
+				Key:   strings.Trim(fmt.Sprintf("%s.oneOf.%d.const", prefix, i), "."),
+				Value: enum,
+			}
+			kvs.Add(kv)
+			kv = kvstruct.KV{
+				Key:   strings.Trim(fmt.Sprintf("%s.oneOf.%d.title", prefix, i), "."),
+				Value: enumName,
+			}
+			kvs.Add(kv)
+		}
 		return kvs
 	}
-	enumLen := len(enum)
-	for i, enumName := range enumNames {
-		if i >= enumLen {
-			continue
-		}
-		enum := enum[i]
-		kv := kvstruct.KV{
-			Key:   strings.Trim(fmt.Sprintf("%s.oneOf.%d.const", prefix, i), "."),
-			Value: enum,
-		}
-		kvs.Add(kv)
-		kv = kvstruct.KV{
-			Key:   strings.Trim(fmt.Sprintf("%s.oneOf.%d.title", prefix, i), "."),
-			Value: enumName,
-		}
-		kvs.Add(kv)
-	}
-	return kvs
-}
 
+*
+*/
 var jsonschemalineItemOrder = []string{
 	"fullname", "src", "dst", "type", "format", "pattern", "enum", "required", "allowEmptyValue", "title", "description", "default", "comment", "example", "deprecated", "const",
 	"multipleOf", "maximum", "exclusiveMaximum", "minimum", "exclusiveMinimum", "maxLength", "minLength",

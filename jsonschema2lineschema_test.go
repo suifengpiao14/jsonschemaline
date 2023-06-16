@@ -18,7 +18,7 @@ func TestJsonSchema2LineSchema(t *testing.T) {
 	}
 
 	_ = lineschemaStr
-	//fmt.Println(lineschemaStr)
+	fmt.Println(lineschemaStr)
 
 }
 

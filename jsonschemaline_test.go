@@ -398,8 +398,8 @@ func TestToJsonSchemaKVS(t *testing.T) {
 			Description: "类型",
 			Type:        "string",
 			Required:    true,
-			Enum:        []string{"1", "2"},
-			EnumNames:   []string{"类型1", "类型2"},
+			Enum:        `[1,2]`,
+			EnumNames:   `["类型1", "类型2"]`,
 		}
 		kvs, err := item.ToJsonSchemaKVS()
 		require.NoError(t, err)
@@ -413,8 +413,8 @@ func TestToJsonSchemaKVS(t *testing.T) {
 			Description: "类型",
 			Type:        "string",
 			Required:    true,
-			Enum:        []string{"1", "2"},
-			EnumNames:   []string{"类型1", "类型2"},
+			Enum:        `[1,2]`,
+			EnumNames:   `["类型1", "类型2"]`,
 		}
 		kvs, err := item.ToJsonSchemaKVS()
 		require.NoError(t, err)
