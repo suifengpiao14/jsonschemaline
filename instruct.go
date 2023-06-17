@@ -44,7 +44,7 @@ func (a Instructs) Less(i, j int) bool {
 }
 
 type InstructTpl struct {
-	ID        ID
+	ID        string
 	Version   string
 	Type      string
 	Instructs Instructs
@@ -53,7 +53,7 @@ type InstructTpls []*InstructTpl
 
 func (instructTpls InstructTpls) GetByID(id string) *InstructTpl {
 	for _, instruct := range instructTpls {
-		if instruct.ID == ID(id) {
+		if instruct.ID == id {
 			out := instruct
 			return out
 		}
@@ -140,7 +140,7 @@ func ParseInstructTp(lineschema Jsonschemaline) (instructTpl *InstructTpl) {
 func FormatOutputTplInstruct(instructTpl InstructTpl) (newInstructTpl InstructTpl) {
 	newInstructTpl = instructTpl
 	instructs := Instructs{}
-	root := instructTpl.ID.String()
+	root := instructTpl.ID
 	for _, instruct := range instructTpl.Instructs {
 		newInstruct := FormatOutputInstruct(*instruct, root)
 		instructs = append(instructs, &newInstruct)

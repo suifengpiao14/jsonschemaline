@@ -222,7 +222,7 @@ var jsonschemalineItemOrder = []string{
 }
 
 type Meta struct {
-	ID        ID     `json:"id"`
+	ID        string `json:"id"`
 	Version   string `json:"version"`
 	Direction string `json:"direction"`
 }
@@ -381,7 +381,7 @@ type DefaultJson struct {
 
 func (l *Jsonschemaline) DefaultJson() (defaultJson *DefaultJson, err error) {
 	defaultJson = new(DefaultJson)
-	id := l.Meta.ID.String()
+	id := l.Meta.ID
 	defaultJson.ID = id
 	defaultJson.Version = l.Meta.Version
 	kvmap := make(map[string]string)
