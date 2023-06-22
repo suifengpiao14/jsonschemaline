@@ -538,3 +538,68 @@ func TestGjsonPathWithDefaultFormat(t *testing.T) {
 	fmt.Println(newData)
 
 }
+
+func TestMergeLineschema(t *testing.T) {
+	t.Run("in", func(t *testing.T) {
+		first := `
+		version=http://json-schema.org/draft-07/schema,id=input,direction=in
+	fullname=config.id,dst=id,required
+	fullname=config.keyConst,dst=keyConst,required
+	fullname=config.label,dst=label,required
+	fullname=config.title,dst=title,required
+	fullname=pageInfo.pageIndex,dst=pageInfo.pageIndex,required
+	fullname=pageInfo.pageSize,dst=pageInfo.pageSize,required
+		
+		`
+		second := `
+		version=http://json-schema.org/draft-07/schema,id=input,direction=in
+		fullname=Fid,type=int,dst=Fid,required
+		fullname=Fkey_const,dst=Fkey_const,required
+		fullname=Flabel,dst=Flabel,required
+		fullname=Ftitle,dst=title,required
+		`
+		merged, err := jsonschemaline.MergeLineschema(first, second, 0.7)
+		require.NoError(t, err)
+		fmt.Println(merged)
+	})
+
+	t.Run("out", func(t *testing.T) {
+		first := `
+	version=http://json-schema.org/draft-07/schema,id=output,direction=out
+fullname=items[].content,src=items.#.content,required
+fullname=items[].createdAt,src=items.#.created_at,required
+fullname=items[].deletedAt,src=items.#.deleted_at,required
+fullname=items[].description,src=items.#.description,required
+fullname=items[].icon,src=items.#.icon,required
+fullname=items[].id,src=items.#.id,required
+fullname=items[].key,src=items.#.key,required
+fullname=items[].label,src=items.#.label,required
+fullname=items[].thumb,src=items.#.thumb,required
+fullname=items[].title,src=items.#.title,required
+fullname=items[].updatedAt,src=items.#.updated_at,required
+fullname=pageInfo.pageIndex,src=input.pageInd#.ex,required
+fullname=pageInfo.pageSize,src=input.pageSize,required
+fullname=pageInfo.total,src=PaginateTotalOut,required
+	`
+		second := `
+	version=http://json-schema.org/draft-07/schema,id=output,direction=out
+fullname=PaginateOut[].Fcontent,src=PaginateOut.#.Fcontent,required
+fullname=PaginateOut[].FcreatedAt,src=PaginateOut.#.Fcreated_at,required
+fullname=PaginateOut[].FdeletedAt,src=PaginateOut.#.Fdeleted_at,required
+fullname=PaginateOut[].Fdescription,src=PaginateOut.#.Fdescription,required
+fullname=PaginateOut[].Ficon,src=PaginateOut.#.Ficon,required
+fullname=PaginateOut[].Fid,src=PaginateOut.#.Fid,required
+fullname=PaginateOut[].Fkey,src=PaginateOut.#.Fkey,required
+fullname=PaginateOut[].Flabel,src=PaginateOut.#.Flabel,required
+fullname=PaginateOut[].Fthumb,src=PaginateOut.#.Fthumb,required
+fullname=PaginateOut[].Ftitle,src=PaginateOut.#.title,required
+fullname=PaginateOut[].FupdatedAt,src=PaginateOut.#.updated_at,required
+	
+	`
+
+		merged, err := jsonschemaline.MergeLineschema(first, second, 0.7)
+		require.NoError(t, err)
+		fmt.Println(merged)
+	})
+
+}

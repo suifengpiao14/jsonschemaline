@@ -746,3 +746,135 @@ func GetJsonSchemaSchema() (schema string) {
 	schema = string(b)
 	return schema
 }
+
+// MergeLineschema 合并2个同方向的lineschema,取第一个的fullname,第二个的dst或者src reliability为比率,最大为1.0
+func MergeLineschema(first string, second string, reliability float64) (merged string, err error) {
+	firstLineschema, err := ParseJsonschemaline(first)
+	if err != nil {
+		return "", err
+	}
+	secondLineschema, err := ParseJsonschemaline(second)
+	if err != nil {
+		return "", err
+	}
+	if firstLineschema.Meta.Direction != secondLineschema.Meta.Direction {
+		err = errors.Errorf("MergeLineschema first,second direction require same,got: first-%s;second-%s", firstLineschema.Meta.Direction, secondLineschema.Meta.Direction)
+		return "", err
+	}
+	dstMap := map[string]*JsonschemalineItem{}
+	srcMap := map[string]*JsonschemalineItem{}
+	dstArr := make([]string, 0)
+	srcArr := make([]string, 0)
+	for _, item := range secondLineschema.Items {
+		dstKey := BaseName(item.Dst)
+		srcKey := BaseName(item.Src)
+		dstMap[dstKey] = item
+		srcMap[srcKey] = item
+		dstArr = append(dstArr, dstKey)
+		srcArr = append(srcArr, srcKey)
+	}
+
+	//输入
+	if secondLineschema.Meta.Direction == LINE_SCHEMA_DIRECTION_IN {
+		prefix := FindStrArrayCommonPrefix(dstArr, reliability)
+		for _, item := range firstLineschema.Items {
+			name := BaseName(item.Fullname)
+			dst, ok := Similarity(name, dstArr, prefix)
+			if !ok {
+				continue
+			}
+			dstItem := dstMap[dst]
+			item.Dst = dstItem.Dst
+			item.Format = dstItem.Format
+			if dstItem.Format == "" {
+				item.Format = dstItem.Type
+			}
+		}
+		return firstLineschema.String(), nil
+	}
+	//输出
+	if secondLineschema.Meta.Direction == LINE_SCHEMA_DIRECTION_OUT {
+		prefix := FindStrArrayCommonPrefix(srcArr, reliability)
+		for _, item := range firstLineschema.Items {
+			name := BaseName(item.Fullname)
+			src, ok := Similarity(name, srcArr, prefix)
+			if !ok {
+				continue
+			}
+			srcItem := srcMap[src]
+			item.Src = srcItem.Src
+		}
+		return firstLineschema.String(), nil
+	}
+	return first, nil
+}
+
+func Similarity(s string, set []string, prefix string) (out string, ok bool) {
+	prefix = strings.ToLower(funcs.ToSnakeCase(prefix))
+	snake := strings.ToLower(funcs.ToSnakeCase(s))
+	snakeMap := map[string]string{}
+	for i := 0; i < len(set); i++ {
+		key := strings.ToLower(funcs.ToSnakeCase(set[i]))
+		snakeMap[key] = set[i]
+	}
+	if out, ok = snakeMap[snake]; ok { // 找到完全相同的,直接返回
+		return out, ok
+	}
+	//前缀
+	if prefix != "" {
+		snake1 := fmt.Sprintf("%s%s", prefix, snake)
+		if out, ok = snakeMap[snake1]; ok { // 增加前缀,找到完全相同的,直接返回
+			return out, ok
+		}
+	}
+	return out, false
+}
+
+// FindStrArrayCommonPrefix 找到数字中字符串的最长前缀(并符合指定比率)
+func FindStrArrayCommonPrefix(arr []string, reliability float64) (prefix string) {
+	l := len(arr)
+	if l < 1 {
+		return prefix
+	}
+	var w bytes.Buffer
+	arrStrLen := make([]int, l)
+	minStrLen := len(arr[0])
+	for i, str := range arr {
+		strL := len(str)
+		arrStrLen[i] = strL
+		if strL < minStrLen {
+			minStrLen = strL
+		}
+	}
+	for index := 0; index < minStrLen; index++ {
+		runArr := make([]byte, l)
+		for i := 0; i < l; i++ {
+			runArr[i] = arr[i][index]
+		}
+		run, count := getMaxCount(runArr)
+		if float64(count)/float64(l) < reliability { //中间某个字符的概率低于预期,则直接跳出
+			break
+		}
+		w.WriteByte(run)
+
+	}
+	prefix = w.String()
+	return prefix
+}
+
+// getMaxCount 获取数组中的众数
+func getMaxCount(arr []byte) (elem byte, maxCount int) {
+	countMap := make(map[byte]int)
+
+	for _, str := range arr {
+		countMap[str]++
+	}
+	for s, count := range countMap {
+		if count > maxCount {
+			elem = s
+			maxCount = count
+		}
+	}
+
+	return elem, maxCount
+}
