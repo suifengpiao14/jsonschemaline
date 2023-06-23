@@ -53,6 +53,7 @@ func ParseJsonschemaline(lineschema string) (jsonline *Jsonschemaline, err error
 		} else if item.Dst == "" {
 			item.Dst = srcOrDst
 		}
+		item.Lineschema = jsonline
 		jsonline.Items = append(jsonline.Items, item)
 	}
 

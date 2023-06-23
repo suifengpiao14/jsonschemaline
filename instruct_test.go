@@ -36,11 +36,12 @@ fullname=pageInfo.total,required,src=PaginateTotalOut
 `
 
 // var schemalineIn = `
-//     version=http://json-schema.org/draft-07/schema#,id=request
-// 	fullname=config.openId,dst=FopenID,format=DBValidate,required
-// 	fullname=config.type,dst=FopenIDType,enum=["1","2"],required
-// 	fullname=config.status,dst=Fstatus,enum=["0","1"],format=number,required
-//  `
+//
+//	    version=http://json-schema.org/draft-07/schema#,id=request
+//		fullname=config.openId,dst=FopenID,format=DBValidate,required
+//		fullname=config.type,dst=FopenIDType,enum=["1","2"],required
+//		fullname=config.status,dst=Fstatus,enum=["0","1"],format=number,required
+//	 `
 var schemalineIn2 = `
     version=http://json-schema.org/draft-07/schema#,id=mainIn
 	fullname=pageSize,format=number,required,dst=Limit

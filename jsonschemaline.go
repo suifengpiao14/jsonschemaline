@@ -43,21 +43,22 @@ type JsonschemalineItem struct {
 	// RFC draft-bhutton-json-schema-validation-00, section 7
 	Format string `json:"format,omitempty"`
 	// RFC draft-bhutton-json-schema-validation-00, section 8
-	ContentEncoding  string       `json:"contentEncoding,omitempty"`   // section 8.3
-	ContentMediaType string       `json:"contentMediaType,omitempty"`  // section 8.4
-	Title            string       `json:"title,omitempty"`             // section 9.1
-	Description      string       `json:"description,omitempty"`       // section 9.1
-	Default          string       `json:"default,omitempty"`           // section 9.2
-	Deprecated       bool         `json:"deprecated,omitempty,string"` // section 9.3
-	ReadOnly         bool         `json:"readOnly,omitempty,string"`   // section 9.4
-	WriteOnly        bool         `json:"writeOnly,omitempty,string"`  // section 9.4
-	Example          string       `json:"example,omitempty"`           // section 9.5
-	Examples         string       `json:"examples,omitempty"`          // section 9.5
-	Src              string       `json:"src,omitempty"`
-	Dst              string       `json:"dst,omitempty"`
-	Fullname         string       `json:"fullname,omitempty"`
-	AllowEmptyValue  bool         `json:"allowEmptyValue,omitempty,string"`
-	TagLineKVpair    kvstruct.KVS `json:"-"`
+	ContentEncoding  string          `json:"contentEncoding,omitempty"`   // section 8.3
+	ContentMediaType string          `json:"contentMediaType,omitempty"`  // section 8.4
+	Title            string          `json:"title,omitempty"`             // section 9.1
+	Description      string          `json:"description,omitempty"`       // section 9.1
+	Default          string          `json:"default,omitempty"`           // section 9.2
+	Deprecated       bool            `json:"deprecated,omitempty,string"` // section 9.3
+	ReadOnly         bool            `json:"readOnly,omitempty,string"`   // section 9.4
+	WriteOnly        bool            `json:"writeOnly,omitempty,string"`  // section 9.4
+	Example          string          `json:"example,omitempty"`           // section 9.5
+	Examples         string          `json:"examples,omitempty"`          // section 9.5
+	Src              string          `json:"src,omitempty"`
+	Dst              string          `json:"dst,omitempty"`
+	Fullname         string          `json:"fullname,omitempty"`
+	AllowEmptyValue  bool            `json:"allowEmptyValue,omitempty,string"`
+	TagLineKVpair    kvstruct.KVS    `json:"-"`
+	Lineschema       *Jsonschemaline `json:"-"`
 }
 
 func (jItem JsonschemalineItem) String() (jsonStr string) {
@@ -287,6 +288,15 @@ func (l *Jsonschemaline) String() string {
 	}
 	out := strings.Join(lineArr, EOF)
 	return out
+}
+
+// BaseNames 获取所有基础名称
+func (l *Jsonschemaline) BaseNames() (names []string) {
+	names = make([]string, 0)
+	for _, item := range l.Items {
+		names = append(names, BaseName(item.Fullname))
+	}
+	return names
 }
 
 func (l *Jsonschemaline) JsonSchema() (jsonschemaByte []byte, err error) {
