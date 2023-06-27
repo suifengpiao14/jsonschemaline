@@ -436,12 +436,8 @@ func (l *Jsonschemaline) ToSturct() (structs Structs) {
 			parentStruct, _ := structs.Get(parentStructName) // 一定存在
 			baseName := nameArr[i]
 			realBaseName := strings.TrimSuffix(baseName, arraySuffix)
-			isArray := baseName != realBaseName || item.Type == "array"
+			isArray := baseName != realBaseName
 			attrName := funcs.ToCamel(realBaseName)
-			comment := item.Comments
-			if comment == "" {
-				comment = item.Description
-			}
 			if i < nameCount-1 { // 非最后一个,即为上级的attr,又为下级的struct
 				subStructName := funcs.ToCamel(strings.Join(nameArr[:i+1], "_"))
 				attrType := subStructName
@@ -472,6 +468,10 @@ func (l *Jsonschemaline) ToSturct() (structs Structs) {
 			}
 
 			// 最后一个
+			comment := item.Comments
+			if comment == "" {
+				comment = item.Description
+			}
 			typ := item.Type
 			if typ == "string" && format != "" {
 				typ = format
@@ -480,6 +480,7 @@ func (l *Jsonschemaline) ToSturct() (structs Structs) {
 			if l.Meta.Direction == LINE_SCHEMA_DIRECTION_IN && !item.Required { //当作入参时,非必填字断,使用引用
 				typ = fmt.Sprintf("*%s", typ)
 			}
+			isArray = isArray || strings.ToLower(item.Type) == "array" // 最后一个接受当前的type字段值
 			if isArray {
 				if typ == "array" {
 					typ = "interface{}"
