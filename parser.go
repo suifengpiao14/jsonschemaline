@@ -153,8 +153,12 @@ func parserOneLine(line string) (kvs kvstruct.KVS) {
 			Value: v,
 		}
 		kvs.Add(kv)
-
 	}
+	// 增加默认type=string，如果存在则忽略
+	kvs.AddIgnore(kvstruct.KV{
+		Key:   "type",
+		Value: "string",
+	})
 	return kvs
 }
 func isToken(s string) (yes bool) {
