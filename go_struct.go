@@ -14,6 +14,7 @@ type Struct struct {
 	Name       string
 	Lineschema string
 	Attrs      []*StructAttr
+	Type       string
 }
 
 // AddAttrIgnore 已经存在则跳过
@@ -123,6 +124,20 @@ func (s *Structs) AddNameprefix(nameprefix string) {
 	for _, struc := range *s {
 		baseName := struc.Name
 		struc.Name = funcs.ToCamel(fmt.Sprintf("%s_%s", nameprefix, baseName))
+		if struc.Type != "" {
+			typ := struc.Type
+			arrayPrefix := "[]"
+			hasArrPrefix := strings.Contains(typ, arrayPrefix)
+			if hasArrPrefix {
+				typ = strings.TrimPrefix(typ, arrayPrefix)
+			}
+			prefix := ""
+			if hasArrPrefix {
+				prefix = arrayPrefix
+			}
+			struc.Type = fmt.Sprintf("%s%s%s", prefix, nameprefix, typ)
+
+		}
 		for _, attr := range allAttrs {
 			if strings.HasSuffix(attr.Type, baseName) {
 				attr.Type = fmt.Sprintf("%s%s", attr.Type[:len(attr.Type)-len(baseName)], struc.Name)

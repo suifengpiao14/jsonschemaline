@@ -434,6 +434,9 @@ func (l *Jsonschemaline) ToSturct() (structs Structs) {
 		for i := 1; i < nameCount; i++ { //i从1开始,0 为root,已处理
 			parentStructName := funcs.ToCamel(strings.Join(nameArr[:i], "_"))
 			parentStruct, _ := structs.Get(parentStructName) // 一定存在
+			if strings.HasPrefix(parentStruct.Type, "[]") {
+				parentStruct, _ = structs.Get(complex2singularName(parentStructName)) //取单数, 一定存在
+			}
 			baseName := nameArr[i]
 			realBaseName := strings.TrimSuffix(baseName, arraySuffix)
 			isArray := baseName != realBaseName
@@ -442,7 +445,18 @@ func (l *Jsonschemaline) ToSturct() (structs Structs) {
 				subStructName := funcs.ToCamel(strings.Join(nameArr[:i+1], "_"))
 				attrType := subStructName
 				if isArray {
-					attrType = fmt.Sprintf("[]%s", attrType)
+					singularName := complex2singularName(attrType)
+					complexStruct := &Struct{
+						IsRoot: false,
+						Name:   attrType,
+						Type:   fmt.Sprintf("[]%s", singularName),
+					}
+					structs.AddIngore(complexStruct)
+					singularStruct := &Struct{
+						IsRoot: false,
+						Name:   singularName,
+					}
+					structs.AddIngore(singularStruct)
 				}
 				attr := StructAttr{
 					Name: attrName,
@@ -515,6 +529,23 @@ func (l *Jsonschemaline) ToSturct() (structs Structs) {
 	}
 
 	return structs
+}
+
+// complex2singularName 格式化数组名称
+func complex2singularName(name string) (friendlyName string) {
+	l := len(name)
+	if l == 0 {
+		return ""
+	}
+	//优化列表命名
+	if strings.HasSuffix(name, "List") {
+		friendlyName = name[:l-4]
+	} else if strings.HasSuffix(name, "ies") {
+		friendlyName = fmt.Sprintf("%sy", name[:l-3])
+	} else if l > 0 && name[l-1] == 's' {
+		friendlyName = name[:l-1]
+	}
+	return friendlyName
 }
 
 // GjsonPathWithDefaultFormat 生成格式化的jsonpath，用来重新格式化数据,比如入参字段类型全为字符串，在format中标记了实际类型，可以通过该方法获取转换数据的gjson path，从入参中提取数据后，对应字段类型就以format为准，此处仅仅提供有创意的案例，更多可以依据该思路扩展
