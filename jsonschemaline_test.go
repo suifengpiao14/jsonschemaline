@@ -249,7 +249,8 @@ func TestGjsonPathWithDefaultFormatOutput(t *testing.T) {
 			panic(err)
 		}
 		out := gjson.Get(jsonStr, gjsonPath).String()
-		fmt.Println(out)
+		excepted := `{"pageIndex":"0","pageSize":"20","items":[{"status":"true","id":"1","title":"标题1"},{"status":"false","id":"2","title":"标题2"}]}`
+		assert.JSONEq(t, excepted, out)
 	})
 }
 func TestGjsonPathWithDefaultFormatInput(t *testing.T) {
@@ -266,7 +267,7 @@ func TestGjsonPathWithDefaultFormatInput(t *testing.T) {
 	}
 
 	t.Run("string", func(t *testing.T) {
-		jsonStr := `{"input":{"pageIndex":"0","pageSize":"20","items":[{"id":"1","title":"标题1"},{"id":"2","title":"标题2"}]}}`
+		jsonStr := `{"pageIndex":"0","pageSize":"20","items":[{"id":"1","title":"标题1"},{"id":"2","title":"标题2"}]}`
 		gjsonPath := lineschema.GjsonPathWithDefaultFormat(false)
 		if err != nil {
 			panic(err)
@@ -275,7 +276,7 @@ func TestGjsonPathWithDefaultFormatInput(t *testing.T) {
 		fmt.Println(out)
 	})
 	t.Run("nil", func(t *testing.T) {
-		jsonStr := `{"input":{"pageSize":"20"}}`
+		jsonStr := `{"pageSize":"20"}`
 		gjsonPath := lineschema.GjsonPathWithDefaultFormat(false)
 		if err != nil {
 			panic(err)
@@ -284,7 +285,7 @@ func TestGjsonPathWithDefaultFormatInput(t *testing.T) {
 		fmt.Println(out)
 	})
 	t.Run("true", func(t *testing.T) {
-		jsonStr := `{"input":{"pageSize":"20","valid":1}}`
+		jsonStr := `{"pageSize":"20","valid":1}`
 		gjsonPath := lineschema.GjsonPathWithDefaultFormat(false)
 		if err != nil {
 			panic(err)
@@ -536,6 +537,40 @@ func TestGjsonPathWithDefaultFormat(t *testing.T) {
 	gpath := jsonline.GjsonPathWithDefaultFormat(true)
 	newData := gjson.Get(data, gpath).String()
 	fmt.Println(newData)
+
+}
+
+func TestGjsonPathWithDefaultFormatOutput2(t *testing.T) {
+	outputLineschema := `version=http://json-schema.org/draft-07/schema#,direction=out,id=out
+fullname=reportUrl,src=reportUrl,title=质检报告URL,comment=质检报告URL
+fullname=classId,src=classId,format=int,title=分类ID,comment=分类ID
+fullname=className,src=className,title=分类名称,comment=分类名称
+fullname=productId,src=productId,format=int,title=产品ID,comment=产品ID
+fullname=productName,src=productName,title=产品名称,comment=产品名称
+fullname=brandId,src=brandId,format=int,title=品牌id,comment=品牌id
+fullname=brandName,src=brandName,title=品牌名称,comment=品牌名称
+fullname=detectType,src=detectType,title=检测类型line插线检imei扫描IMEI号manual手动检,comment=检测类型line插线检imei扫描IMEI号manual手动检
+fullname=imeiResult,src=imeiResult,type=object,title=imei检测结果,comment=imei检测结果
+fullname=imeiResult.imei,src=imeiResult.imei,title=imei号,comment=imei号
+fullname=imeiResult.items,src=imeiResult.items,type=array,title=imei选项,comment=imei选项
+fullname=imeiResult.items[].qid,src=imeiResult.items.#.qid,title=问题ID,comment=问题ID
+fullname=imeiResult.items[].qname,src=imeiResult.items.#.qname,title=问题名称,comment=问题名称
+fullname=imeiResult.items[].aname,src=imeiResult.items.#.aname,title=答案名称,comment=答案名称
+fullname=SelectedAnswers,src=SelectedAnswers,type=array,title=答案,comment=答案
+fullname=SelectedAnswers,src=SelectedAnswers,type=array,title=选中的答案集合,comment=选中的答案集合
+fullname=SelectedAnswers[].selectorType,src=SelectedAnswers.#.selectorType,title=答题者类型,comment=答题者类型
+fullname=SelectedAnswers[].selectorId,src=SelectedAnswers.#.selectorId,title=答题者id,comment=答题者id
+fullname=SelectedAnswers[].aId,src=SelectedAnswers.#.aId,title=选中的答案ID,comment=选中的答案ID
+fullname=SelectedAnswers[].aname,src=SelectedAnswers.#.aname,title=答案项名称,comment=答案项名称
+fullname=SelectedAnswers[].qname,src=SelectedAnswers.#.qname,title=问题项名称,comment=问题项名称
+fullname=SelectedAnswers[].qId,src=SelectedAnswers.#.qId,title=选中的问题ID,comment=选中的问题ID
+fullname=SelectedAnswers[].stepName,src=SelectedAnswers.#.stepName,title=所属步骤名称,comment=所属步骤名称
+fullname=SelectedAnswers[].isBad,src=SelectedAnswers.#.isBad,format=int,title=是否是缺陷项（1-是,0-不是）,comment=是否是缺陷项（1-是,0-不是）`
+
+	outputLineSchema, err := jsonschemaline.ParseJsonschemaline(outputLineschema)
+	require.NoError(t, err)
+	outputFormatGjsonPath := outputLineSchema.GjsonPathWithDefaultFormat(true)
+	fmt.Println(outputFormatGjsonPath)
 
 }
 

@@ -649,10 +649,6 @@ func recursionWrite(m *map[string]interface{}) (w bytes.Buffer) {
 			k = strings.TrimRight(k, "[]")
 		}
 
-		if strings.Contains(subwKey, ".#.") {
-			isArray = true
-		}
-
 		if isArray {
 			subStr = fmt.Sprintf("%s:{%s}|@group", k, subwKey)
 		} else {
