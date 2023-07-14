@@ -9,9 +9,9 @@ import (
 
 func TestJsonMerge(t *testing.T) {
 	defaultJson := `{"pageSize":"20","remark":"hello world"}`
-	specialJson := `{"pageIndex":"0","pageSize":"10"}`
+	specialJson := `{"pageIndex":"0","pageSize":""}`
 
-	merge, err := jsonschemaline.JsonMerge(defaultJson, specialJson)
+	merge, err := jsonschemaline.JsonMergeIgnoreEmptyString(defaultJson, specialJson)
 	if err != nil {
 		panic(err)
 	}
