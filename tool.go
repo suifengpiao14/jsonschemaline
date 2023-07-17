@@ -1,32 +1,24 @@
 package jsonschemaline
 
 import (
-	jsonpatch "github.com/evanphx/json-patch/v5"
 	"github.com/suifengpiao14/kvstruct"
+	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 )
 
-func JsonMergeIgnoreEmptyString(first string, second string) (merge string, err error) {
-	patch, err := jsonpatch.CreateMergePatch([]byte(first), []byte(second))
-	if err != nil {
-		return "", err
-	}
-	kvs := kvstruct.JsonToKVS(string(patch), "")
-	fielterKvs := make(kvstruct.KVS, 0)
+func MergeDefault(data string, defaul string) (merge string, err error) {
+	kvs := kvstruct.JsonToKVS(defaul, "")
 	for _, kv := range kvs {
 		if kv.Value == "" {
 			continue
 		}
-		fielterKvs.Add(kv)
+		v := gjson.Get(data, kv.Key).String()
+		if v == "" {
+			data, err = sjson.Set(data, kv.Key, kv.Value)
+			if err != nil {
+				return "", err
+			}
+		}
 	}
-	patchStr, err := fielterKvs.Json(false)
-	if err != nil {
-		return "", err
-	}
-
-	mergeb, err := jsonpatch.MergePatch([]byte(first), []byte(patchStr))
-	if err != nil {
-		return "", err
-	}
-	merge = string(mergeb)
-	return merge, err
+	return data, err
 }
