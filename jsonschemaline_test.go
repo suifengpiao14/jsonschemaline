@@ -574,6 +574,17 @@ fullname=SelectedAnswers[].isBad,src=SelectedAnswers.#.isBad,format=int,title=�
 
 }
 
+func TestArray(t *testing.T) {
+	outputLineschema := `version=http://json-schema.org/draft-07/schema#,direction=out,id=out
+fullname=times[].time,src=times.#.time,title=时间,comment=时间
+fullname=select,src=select,type=array,format=string,title=17项选项ID,comment=17项选项ID`
+	outputLineSchema, err := jsonschemaline.ParseJsonschemaline(outputLineschema)
+	require.NoError(t, err)
+	outputFormatGjsonPath := outputLineSchema.GjsonPathWithDefaultFormat(true)
+	fmt.Println(outputFormatGjsonPath)
+
+}
+
 func TestMergeLineschema(t *testing.T) {
 	t.Run("in", func(t *testing.T) {
 		first := `

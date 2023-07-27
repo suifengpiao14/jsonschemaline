@@ -564,7 +564,14 @@ func (l *Jsonschemaline) GjsonPath(ignoreID bool, formatPath func(format string,
 	m := &map[string]interface{}{}
 	for _, item := range l.Items {
 		switch strings.ToLower(item.Type) {
-		case "array", "object": // 数组、对象需要遍历内部结构,忽略外部的path
+		case "array":
+			if item.Format == "" {
+				continue
+			}
+			item.Fullname = fmt.Sprintf("%s[]", item.Fullname) // 解决 ids=[1,3,4] 情况
+			item.Type = item.Format
+
+		case "object": // 数组、对象需要遍历内部结构,忽略外部的path
 			continue
 		}
 		dst, src, format := item.Dst, item.Src, item.Format
