@@ -347,6 +347,9 @@ func (l *Jsonschemaline) JsonExample() (jsonExample string, err error) {
 	jsonExample = ""
 	for _, item := range l.Items {
 		key := strings.ReplaceAll(item.Fullname, "[]", ".0")
+		if key == "" {
+			continue
+		}
 		var value interface{}
 		if item.Examples != "" {
 			value = item.Examples
