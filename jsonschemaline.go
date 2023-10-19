@@ -487,8 +487,12 @@ func (l *Jsonschemaline) ToSturct() (structs Structs) {
 				comment = item.Description
 			}
 			typ := item.Type
-			if typ == "string" && format != "" {
-				typ = format
+			// 根据格式，修改类型
+			switch format {
+			case "int":
+				typ = "int"
+			case "bool", "boolean":
+				typ = "bool"
 			}
 			tag := fmt.Sprintf(`json:"%s"`, funcs.ToLowerCamel(attrName))
 			if l.Meta.Direction == LINE_SCHEMA_DIRECTION_IN && !item.Required { //当作入参时,非必填字断,使用引用
