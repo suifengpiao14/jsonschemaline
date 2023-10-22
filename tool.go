@@ -12,8 +12,8 @@ func MergeDefault(data string, defaul string) (merge string, err error) {
 		if kv.Value == "" {
 			continue
 		}
-		v := gjson.Get(data, kv.Key).String()
-		if v == "" {
+		result := gjson.Get(data, kv.Key)
+		if result.String() == "" || (result.Type == gjson.Number && result.Int() == 0) {
 			data, err = sjson.Set(data, kv.Key, kv.Value)
 			if err != nil {
 				return "", err
