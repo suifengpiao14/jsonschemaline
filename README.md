@@ -17,3 +17,5 @@
 2. go struct 转 jsonschmaline
 
 3. jsonschemaline 转 jsonschema form
+
+已废弃转 https://github.com/suifengpiao14/lineschema
