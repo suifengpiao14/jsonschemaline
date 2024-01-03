@@ -61,6 +61,26 @@ type JsonschemalineItem struct {
 	Lineschema       *Jsonschemaline `json:"-"`
 }
 
+type JsonschemalineItems []*JsonschemalineItem
+
+func (jsonItems JsonschemalineItems) Unique() (uniqItems JsonschemalineItems) {
+	uniqItems = make(JsonschemalineItems, 0)
+	for _, item := range jsonItems {
+		exists := false
+		for _, uinq := range uniqItems {
+			if item.Fullname == uinq.Fullname {
+				exists = true
+				break
+			}
+		}
+		if exists {
+			continue
+		}
+		uniqItems = append(uniqItems, item)
+	}
+	return uniqItems
+}
+
 func (jItem JsonschemalineItem) String() (jsonStr string) {
 	copy := jItem
 	copy.Required = false // 转换成json schema时 required 单独处理
@@ -244,7 +264,7 @@ func IsMetaLine(lineTags kvstruct.KVS) bool {
 
 type Jsonschemaline struct {
 	Meta  *Meta
-	Items []*JsonschemalineItem
+	Items JsonschemalineItems
 }
 
 func (l *Jsonschemaline) String() string {
@@ -681,7 +701,7 @@ func Json2lineSchema(jsonStr string) (out *Jsonschemaline, err error) {
 			ID:        "example",
 			Direction: LINE_SCHEMA_DIRECTION_IN,
 		},
-		Items: make([]*JsonschemalineItem, 0),
+		Items: make(JsonschemalineItems, 0),
 	}
 	var input interface{}
 	err = json.Unmarshal([]byte(jsonStr), &input)
@@ -689,12 +709,13 @@ func Json2lineSchema(jsonStr string) (out *Jsonschemaline, err error) {
 		return nil, err
 	}
 	rv := reflect.Indirect(reflect.ValueOf(input))
-	out.Items = parseOneJsonKey2Line(rv, "")
+	items := parseOneJsonKey2Line(rv, "")
+	out.Items = items.Unique()
 	return out, nil
 }
 
-func parseOneJsonKey2Line(rv reflect.Value, fullname string) (items []*JsonschemalineItem) {
-	items = make([]*JsonschemalineItem, 0)
+func parseOneJsonKey2Line(rv reflect.Value, fullname string) (items JsonschemalineItems) {
+	items = make(JsonschemalineItems, 0)
 	if rv.IsZero() {
 		return items
 	}

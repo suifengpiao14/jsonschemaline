@@ -51,7 +51,11 @@ func TestJson2lineSchema(t *testing.T) {
 				"merchantName":"测试商户",
 				"operateName":"彭政",
 				"storeId":"1",
-				"storeName":"门店名称"
+				"storeName":"门店名称",
+				"more":[
+					{"key":"1","value":"张三"},
+					{"key":"2","value":"李四"}
+				]
 			}
 		}
 	`
